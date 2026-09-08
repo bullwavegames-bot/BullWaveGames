@@ -1,0 +1,66 @@
+import { PRODUCT } from "../config/product";
+import { GAMES } from "../data/games";
+import type { Game } from "../types";
+
+export function kolkataNow(date = new Date()): Date {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: PRODUCT.timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const read = (type: string) => parts.find((part) => part.type === type)?.value ?? "00";
+  return new Date(
+    `${read("year")}-${read("month")}-${read("day")}T${read("hour")}:${read("minute")}:${read("second")}+05:30`,
+  );
+}
+
+export function kolkataDateKey(date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: PRODUCT.timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+export function nextKolkataMidnight(date = new Date()): Date {
+  const key = kolkataDateKey(date);
+  const [year, month, day] = key.split("-").map(Number);
+  const next = new Date(Date.UTC(year, month - 1, day, 18, 30, 0) + 24 * 60 * 60 * 1000);
+  return next;
+}
+
+export function formatKolkata(date: Date, options?: Intl.DateTimeFormatOptions): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: PRODUCT.timezone,
+    ...options,
+  }).format(date);
+}
+
+export function resetLabel(date = new Date()): string {
+  const next = nextKolkataMidnight(date);
+  return `${formatKolkata(next, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  })} IST`;
+}
+
+/** Prototype rotation: three published, rotation-eligible games, windowed by Kolkata date. */
+export function todaysRotation(date = new Date()): Game[] {
+  const published = GAMES.filter((game) => game.published && game.rotationEligible && !game.maintenance);
+  const dayNumber = Math.floor(new Date(`${kolkataDateKey(date)}T00:00:00+05:30`).getTime() / 86400000);
+  const start = ((dayNumber % published.length) + published.length) % published.length;
+  return [0, 1, 2].map((offset) => published[(start + offset) % published.length]);
+}
+
+export function isFreeToday(slug: string, date = new Date()): boolean {
+  return todaysRotation(date).some((game) => game.slug === slug);
+}
