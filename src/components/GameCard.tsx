@@ -15,6 +15,7 @@ export function GameCard({
     <Link className="card game-card" to={`/games/${game.slug}`}>
       <div className="art">
         <img src={game.cover} alt={game.coverAlt} />
+        {game.isNew ? <span className="art-badge"><Badge tone="new">New</Badge></span> : null}
         {locked ? (
           <span className="lock" aria-label="Members">
             ⌁
@@ -25,14 +26,13 @@ export function GameCard({
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
           <strong style={{ color: "var(--white)" }}>{game.title}</strong>
           <span style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            {game.isNew ? <Badge tone="new">New</Badge> : null}
             <Badge tone={availability === "Free today" ? "free" : "default"}>{availability}</Badge>
           </span>
         </div>
         <div className="meta">
           {game.genre} · {game.sessionMinutes} min
         </div>
-        <span className="meta">Game details</span>
+        <span className="card-action">Game details <span aria-hidden="true">↗</span></span>
       </div>
     </Link>
   );

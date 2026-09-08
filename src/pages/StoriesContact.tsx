@@ -5,6 +5,7 @@ import { gameBySlug } from "../data/games";
 import { EmptyState, Button, Field, Notice, TextArea, TextInput } from "../components/ui";
 import { useApp } from "../state/AppState";
 import { PRODUCT } from "../config/product";
+import { PageIntro } from "../components/PageIntro";
 
 export function StoriesPage() {
   const featured = STORIES.find((story) => story.featured) ?? STORIES[0];
@@ -13,7 +14,7 @@ export function StoriesPage() {
   return (
     <div className="section">
       <div className="wrap">
-        <h1 className="display">Inside the studio.</h1>
+        <PageIntro eyebrow="Stories & inspiration" title="Inside the studio." description="Meet the ideas, worlds, and little details behind your next favorite game." />
         <Link className="card game-card" to={`/stories/${featured.slug}`} style={{ marginTop: 28 }}>
           <div className="art" style={{ aspectRatio: "16 / 7" }}>
             <img src="/covers/lantern-path-hero.png" alt="" />

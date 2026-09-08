@@ -35,8 +35,31 @@ export function AppShell() {
     }
   }, [reduced, setIntroDone]);
 
+  useEffect(() => {
+    if (reduced || playing || !("IntersectionObserver" in window)) return;
+    const elements = Array.from(document.querySelectorAll<HTMLElement>(".main .card, .main .panel, .main .steps article, .main .planned-card, .main .page-intro"));
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.remove("reveal-pending");
+          entry.target.classList.add("reveal-in");
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.06 });
+    elements.forEach((element, index) => {
+      element.style.setProperty("--reveal-delay", `${Math.min(index % 6, 4) * 55}ms`);
+      if (element.getBoundingClientRect().top > window.innerHeight) element.classList.add("reveal-pending");
+      observer.observe(element);
+    });
+    return () => {
+      observer.disconnect();
+      elements.forEach((element) => element.classList.remove("reveal-pending", "reveal-in"));
+    };
+  }, [location.pathname, reduced, playing]);
+
   return (
-    <div className={`shell ${playing ? "playing" : ""}`}>
+    <div className={`shell ${playing ? "playing" : ""} ${reduced ? "reduce-motion" : ""}`}>
       <a className="skip" href="#main">
         Skip to content
       </a>
@@ -48,14 +71,14 @@ export function AppShell() {
       {!playing ? (
         <header className={`header ${scrolled || location.pathname !== "/" ? "scrolled" : ""}`}>
           <div className="header-inner">
-            <Link className="brand" to={user ? "/play" : "/"}>
+            <Link className="brand" to="/">
               <img src="/brand/bullwave-mark.png" alt="" />
               Bullwave Games
             </Link>
             <nav className="nav-desktop" aria-label="Primary">
               {user ? (
                 <>
-                  <Item to="/play">Home</Item>
+                  <Item to="/">Home</Item>
                   <Item to="/games">Games</Item>
                   <Item to="/challenges">Challenges</Item>
                   <Item to="/collection">Collection</Item>
@@ -90,6 +113,7 @@ export function AppShell() {
                 </>
               ) : (
                 <>
+                  <Item to="/">Home</Item>
                   <Item to="/games">Games</Item>
                   <Item to="/membership">Membership</Item>
                   <Item to="/stories">Stories</Item>
@@ -133,19 +157,19 @@ export function AppShell() {
             </div>
             <div>
               <h2>Policies</h2>
-              <Link to="/terms-and-conditions">Terms and Conditions</Link>
+              <Link to="/terms-and-conditions">Terms of Service</Link>
               <Link to="/privacy-policy">Privacy Policy</Link>
-              <Link to="/refund-and-cancellation-policy">Refund and Cancellation</Link>
+              <Link to="/refund-and-cancellation-policy">Membership & Cancellation Policy</Link>
               <Link to="/shipping-and-delivery-policy">Shipping and Delivery</Link>
             </div>
           </div>
-          <div className="wrap legal">Draft policy pages are labeled as such. No real-money prizes. Scores and stars have no monetary value.</div>
+          <div className="wrap legal">Bullwave Games contains no wagering, betting, or cash-prize content. All games are for entertainment and skill-based enjoyment only. Draft policy pages are labeled as such.</div>
         </footer>
       ) : null}
 
       {!playing ? (
         <nav className="tabbar" aria-label="Mobile">
-          <Item to={user ? "/play" : "/"}>Home</Item>
+          <Item to="/">Home</Item>
           <Item to="/games">Games</Item>
           <Item to="/membership">Membership</Item>
           <Item to={user ? "/profile" : "/login"}>Profile</Item>

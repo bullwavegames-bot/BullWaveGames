@@ -47,7 +47,7 @@ export function GameDetailPage() {
 
   return (
     <div className="section">
-      <div className="wrap split">
+      <div className="wrap split game-detail-intro">
         <div className="card" style={{ overflow: "hidden" }}>
           {trailerFail ? (
             <div className="empty">Trailer unavailable. Cover remains below.</div>

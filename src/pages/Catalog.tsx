@@ -4,10 +4,11 @@ import { GAMES } from "../data/games";
 import { isFreeToday } from "../lib/time";
 import { useApp } from "../state/AppState";
 import { GameCard } from "../components/GameCard";
+import { PageIntro } from "../components/PageIntro";
 import { Button, EmptyState, ErrorPanel, SkeletonCard } from "../components/ui";
 import type { Genre } from "../types";
 
-const GENRES: Array<"All" | Genre> = ["All", "Puzzle", "Reflex", "Party", "Calm"];
+const GENRES: Array<"All" | Genre> = ["All", "Puzzle", "Reflex", "Rhythm", "Party", "Calm"];
 
 export function CatalogPage() {
   const { games } = useApp();
@@ -81,8 +82,10 @@ export function CatalogPage() {
   return (
     <div className="section">
       <div className="wrap">
-        <h1 className="display">Find your next five-minute escape.</h1>
-        <div className="desktop-only" style={{ marginTop: 20 }}>
+        <PageIntro eyebrow="The Bullwave arcade" title="Find your next five-minute escape." description="A little focus, a quick challenge, or a moment of calm. Find a game that fits your mood.">
+          <div className="intro-perks"><span>↗ Instant browser play</span><span>✦ Original worlds</span><span>✓ No cash stakes</span></div>
+        </PageIntro>
+        <div className="desktop-only catalog-filter-panel" style={{ marginTop: 20 }}>
           {filters}
         </div>
         <div style={{ marginTop: 16 }} className="tabbar-filters">

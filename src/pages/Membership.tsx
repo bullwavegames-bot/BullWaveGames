@@ -3,6 +3,7 @@ import { COMPARISON_ROWS, formatInr, PLANS, PRODUCT } from "../config/product";
 import { checkoutPath, isMember } from "../lib/access";
 import { useApp } from "../state/AppState";
 import { Button, ButtonLink, Notice } from "../components/ui";
+import { PageIntro } from "../components/PageIntro";
 
 const FAQS = [
   {
@@ -53,8 +54,9 @@ export function MembershipPage() {
   return (
     <div className="section">
       <div className="wrap">
-        <h1 className="display">Unlock the studio.</h1>
-        <p className="lede">More games, personal touches, and new reasons to return.</p>
+        <PageIntro eyebrow="Choose your wave" title="Unlock the studio." description="More games, personal touches, and new reasons to return.">
+          <div className="intro-perks"><span>✦ Original games</span><span>◇ Personal touches</span><span>↗ Play in your browser</span></div>
+        </PageIntro>
         {member && entitlement.planId ? (
           <Notice>
             Current plan: {PLANS.find((plan) => plan.id === entitlement.planId)?.name}.{" "}
@@ -66,6 +68,7 @@ export function MembershipPage() {
             const current = member && entitlement.planId === plan.id;
             return (
               <article key={plan.id} className={`card plan ${plan.id === "surge" ? "featured" : ""}`}>
+                <span className={`plan-emblem ${plan.id}`} aria-hidden="true">{plan.id === "wave" ? "≈" : plan.id === "surge" ? "ϟ" : "◇"}</span>
                 <h3>{plan.name}</h3>
                 <div className="price">
                   {formatInr(plan.monthlyPriceInr)}
