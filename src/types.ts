@@ -49,6 +49,7 @@ export interface Game {
   rotationEligible: boolean;
   published: boolean;
   maintenance: boolean;
+  isNew?: boolean;
   unsupportedNote?: string;
 }
 

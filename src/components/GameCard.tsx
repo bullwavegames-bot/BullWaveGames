@@ -22,9 +22,12 @@ export function GameCard({
         ) : null}
       </div>
       <div className="body">
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
           <strong style={{ color: "var(--white)" }}>{game.title}</strong>
-          <Badge tone={availability === "Free today" ? "free" : "default"}>{availability}</Badge>
+          <span style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            {game.isNew ? <Badge tone="new">New</Badge> : null}
+            <Badge tone={availability === "Free today" ? "free" : "default"}>{availability}</Badge>
+          </span>
         </div>
         <div className="meta">
           {game.genre} · {game.sessionMinutes} min

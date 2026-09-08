@@ -49,9 +49,10 @@ export function LanternPath({ api, paused }: { api: GameAPI; paused: boolean }) 
             width: 44,
             height: 44,
             borderRadius: "50%",
-            border: "0",
-            background: path.includes(index) ? "#ff4f9a" : "#1b2433",
-            color: "#05050a",
+            background: path.includes(index) ? "#d5aa50" : "#1d2b3a",
+            color: "#f1f5f9",
+            boxShadow: path.includes(index) ? "0 0 16px rgba(213,170,80,0.45)" : "0 0 12px rgba(166,106,203,0.35)",
+            border: "2px solid #43c7e8",
             cursor: "pointer",
           }}
           aria-label={`Lantern ${index + 1}`}

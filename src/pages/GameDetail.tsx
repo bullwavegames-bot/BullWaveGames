@@ -61,6 +61,7 @@ export function GameDetailPage() {
           <p className="meta">
             {game.sessionMinutes} min session · {isFreeToday(game.slug) ? "Free today" : "Members"}
           </p>
+          {game.isNew ? <Badge tone="new">New</Badge> : null}
           <p>{game.description}</p>
           {game.maintenance ? <Badge tone="warn">Maintenance</Badge> : null}
           <div className="actions">

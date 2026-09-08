@@ -130,6 +130,7 @@ export const GAMES: Game[] = [
     rotationEligible: true,
     published: true,
     maintenance: false,
+    isNew: true,
   },
   {
     id: "two-player-fold",
@@ -156,6 +157,7 @@ export const GAMES: Game[] = [
     rotationEligible: true,
     published: true,
     maintenance: false,
+    isNew: true,
   },
 ];
 

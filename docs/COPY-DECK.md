@@ -36,4 +36,4 @@ Source of truth for interface copy. Prefer these strings; prices always come fro
 
 ## Trust strip
 
-All ages · Instant in browser · No download · No real-money prizes
+Instant in browser · No download · No real-money prizes

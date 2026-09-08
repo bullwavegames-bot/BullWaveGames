@@ -32,7 +32,6 @@ export function LandingPage() {
       </section>
       <div className="wrap">
         <div className="trust" aria-label="Trust">
-          <span>All ages</span>
           <span>Instant in browser</span>
           <span>No download</span>
           <span>No real-money prizes</span>

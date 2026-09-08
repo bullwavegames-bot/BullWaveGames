@@ -68,7 +68,7 @@ export function PaperGharial({ api, paused }: { api: GameAPI; paused: boolean })
               style={{
                 borderRadius: 10,
                 minHeight: 44,
-                background: here ? "#ff4f9a" : bank ? "#60a5fa" : reed ? "#3b2a6e" : "#121018",
+                background: here ? "#d5aa50" : bank ? "#61d6b0" : reed ? "#151f2d" : "#1d2b3a",
               }}
             />
           );

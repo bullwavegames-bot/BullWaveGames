@@ -67,7 +67,7 @@ export function TideTap({ api, paused }: { api: GameAPI; paused: boolean }) {
           width: 220,
           height: 220,
           borderRadius: "50%",
-          border: "2px solid #ff4f9a",
+          border: "2px solid #43c7e8",
           position: "relative",
         }}
         aria-label="Tap when the ring meets the horizon"
@@ -76,7 +76,7 @@ export function TideTap({ api, paused }: { api: GameAPI; paused: boolean }) {
           style={{
             position: "absolute",
             inset: `${(1 - radius) * 42}%`,
-            border: "2px solid #60a5fa",
+            border: "2px solid #a66acb",
             borderRadius: "50%",
           }}
         />

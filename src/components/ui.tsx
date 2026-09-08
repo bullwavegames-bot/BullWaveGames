@@ -163,6 +163,12 @@ export function Notice({ children }: { children: ReactNode }) {
   return <div className="notice">{children}</div>;
 }
 
-export function Badge({ children, tone = "default" }: { children: ReactNode; tone?: "default" | "free" | "warn" }) {
-  return <span className={`badge ${tone === "free" ? "badge-free" : ""} ${tone === "warn" ? "badge-warn" : ""}`}>{children}</span>;
+export function Badge({ children, tone = "default" }: { children: ReactNode; tone?: "default" | "free" | "warn" | "new" }) {
+  return (
+    <span
+      className={`badge ${tone === "free" ? "badge-free" : ""} ${tone === "warn" ? "badge-warn" : ""} ${tone === "new" ? "badge-new" : ""}`}
+    >
+      {children}
+    </span>
+  );
 }

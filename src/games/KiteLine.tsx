@@ -60,12 +60,12 @@ export function KiteLine({ api, paused }: { api: GameAPI; paused: boolean }) {
       }
       canvas.width = Math.max(2, canvas.clientWidth * 2);
       canvas.height = Math.max(2, canvas.clientHeight * 2);
-      ctx.fillStyle = "#05050a";
+      ctx.fillStyle = "#0b121c";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       const corridor = 0.5 + Math.sin(t * 1.4) * 0.18;
-      ctx.fillStyle = "rgba(255,79,154,0.22)";
-      ctx.fillRect(0, (corridor - 0.16) * canvas.height,  canvas.width, 0.32 * canvas.height);
-      ctx.fillStyle = "#60a5fa";
+      ctx.fillStyle = "rgba(166,106,203,0.28)";
+      ctx.fillRect(0, (corridor - 0.16) * canvas.height, canvas.width, 0.32 * canvas.height);
+      ctx.fillStyle = "#d5aa50";
       ctx.beginPath();
       ctx.arc(canvas.width * 0.3, y * canvas.height, 18, 0, Math.PI * 2);
       ctx.fill();

@@ -39,8 +39,7 @@ export function TermsPage() {
   return (
     <PolicyLayout title="Terms and Conditions" id="terms">
       <h2 id="terms-eligibility">Eligibility, accounts, and play</h2>
-      <p>Bullwave Games is open to all players. There is no 18+ age gate and gameplay is not restricted by age.</p>
-      <p>Accounts store progress, collection items, and billing email. Guest play of the daily free rotation is allowed subject to a session allowance.</p>
+      <p>Bullwave Games is an India-first browser arcade. Accounts store progress, collection items, and billing email. Guest play of the daily free rotation is allowed subject to a session allowance.</p>
       <p>Permitted use is personal, non-commercial play of original browser games. Membership unlocks catalog access as configured. Games may be unavailable for maintenance.</p>
       <p>Scores, stars, cosmetics, and personal bests have no monetary value and cannot be withdrawn.</p>
     </PolicyLayout>

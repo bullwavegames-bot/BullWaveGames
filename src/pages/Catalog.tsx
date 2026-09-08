@@ -7,7 +7,7 @@ import { GameCard } from "../components/GameCard";
 import { Button, EmptyState, ErrorPanel, SkeletonCard } from "../components/ui";
 import type { Genre } from "../types";
 
-const GENRES: Array<"All" | Genre> = ["All", "Puzzle", "Reflex", "Party", "Calm", "Rhythm"];
+const GENRES: Array<"All" | Genre> = ["All", "Puzzle", "Reflex", "Party", "Calm"];
 
 export function CatalogPage() {
   const { games } = useApp();

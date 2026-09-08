@@ -12,7 +12,7 @@ export const PRODUCT = {
   language: "English",
   currency: "INR",
   currencySymbol: "₹",
-  audience: "India-first, all ages",
+  audience: "India-first",
   positioning: "Play original browser games. Membership unlocks the studio.",
   timezone: "Asia/Kolkata",
   ageMinimum: 0,
