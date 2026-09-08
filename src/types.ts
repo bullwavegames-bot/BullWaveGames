@@ -1,5 +1,5 @@
 export type PlanId = "wave" | "surge" | "tide";
-export type Genre = "Puzzle" | "Reflex" | "Party" | "Calm" | "Rhythm";
+export type Genre = "Puzzle" | "Reflex" | "Party" | "Calm" | "Rhythm" | "Card & Board" | "Arcade & Skill" | "Trivia & Quiz" | "Strategy & Simulation" | "Multiplayer Party";
 export type Availability = "free-today" | "members";
 export type PublicationStatus = "draft" | "published" | "maintenance";
 export type Role = "player" | "admin";

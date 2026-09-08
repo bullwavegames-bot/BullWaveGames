@@ -1051,10 +1051,13 @@ h3 {
   background: var(--ink);
   display: grid;
   place-items: center;
+  isolation: isolate;
 }
 
 .intro img {
   width: min(180px, 40vw);
+  mix-blend-mode: lighten;
+  mask-image: radial-gradient(ellipse at center, #000 55%, transparent 74%);
   animation: reveal 1.1s ease both;
 }
 

@@ -1,6 +1,8 @@
 import type { Game } from "../types";
+import { COLLECTION } from "./collection";
 
 export const GAMES: Game[] = [
+  ...COLLECTION,
   {
     id: "kite-line",
     slug: "kite-line",

@@ -147,7 +147,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const identityKey = user?.id ?? `guest:${store.guestKey}`;
   const entitlement = store.entitlementByUser[identityKey] ?? emptyEntitlement();
   const settings = store.settingsByUser[identityKey] ?? defaultSettings();
-  const games = store.gamesOverride.length ? store.gamesOverride : GAMES;
+  const games = store.gamesOverride.length ? [...GAMES.map(game => store.gamesOverride.find(item => item.slug === game.slug) ?? game), ...store.gamesOverride.filter(item => !GAMES.some(game => game.slug === item.slug))] : GAMES;
   const dateKey = kolkataDateKey();
   const used = store.sessionDays[`${identityKey}:${dateKey}`] ?? 0;
   const freeRemaining = isMember(entitlement)

@@ -8,7 +8,7 @@ import { PageIntro } from "../components/PageIntro";
 import { Button, EmptyState, ErrorPanel, SkeletonCard } from "../components/ui";
 import type { Genre } from "../types";
 
-const GENRES: Array<"All" | Genre> = ["All", "Puzzle", "Reflex", "Rhythm", "Party", "Calm"];
+const GENRES: Array<"All" | Genre> = ["All", "Card & Board", "Puzzle", "Arcade & Skill", "Trivia & Quiz", "Strategy & Simulation", "Multiplayer Party", "Reflex", "Rhythm", "Party", "Calm"];
 
 export function CatalogPage() {
   const { games } = useApp();

@@ -13,13 +13,20 @@ import { RangoliRecall } from "../games/RangoliRecall";
 import { TwoPlayerFold } from "../games/TwoPlayerFold";
 import type { Game } from "../types";
 import type { GameAPI } from "../games/types";
+import { CollectionGame } from "../games/collection";
 
 export function GameSessionPage() {
+  const { slug } = useParams();
+  return <GameSession key={slug} />;
+}
+
+function GameSession() {
   const { slug = "" } = useParams();
   const navigate = useNavigate();
   const { games, entitlement, freeRemaining, consumeSession, recordResult, settings } = useApp();
   const game = games.find((item) => item.slug === slug) ?? gameBySlug(slug);
   const access = game ? accessForGame(game, entitlement, freeRemaining) : null;
+  const liveRoom = ["draw-guess", "multiplayer-ludo", "live-trivia", "trivia-battle"].includes(slug);
   const [phase, setPhase] = useState<"idle" | "playing" | "paused" | "results" | "limit">("idle");
   const [muted, setMuted] = useState(!settings.gameSound);
   const [fullscreen, setFullscreen] = useState(false);
@@ -31,7 +38,7 @@ export function GameSessionPage() {
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (game && access && !canLaunch(access) && access.kind === "allowance") setPhase("limit");
+    if (!started.current && game && access && !canLaunch(access) && access.kind === "allowance") setPhase("limit");
   }, [game, access]);
 
   if (!game) {
@@ -86,13 +93,13 @@ export function GameSessionPage() {
   return (
     <div className="hud-shell" ref={rootRef}>
       <div className="hud-top">
-        <Button onClick={() => (phase === "playing" ? setPhase("paused") : navigate("/play"))}>Back</Button>
+        <Button onClick={() => (phase === "playing" ? liveRoom ? setConfirm("quit") : setPhase("paused") : navigate("/play"))}>Back</Button>
         <strong>{game.title}</strong>
         <div>
           <Button aria-pressed={!muted} onClick={() => setMuted((value) => !value)}>
             {muted ? "Sound off" : "Sound on"}
           </Button>
-          {phase === "playing" ? <Button onClick={() => setPhase("paused")}>Pause</Button> : null}
+          {phase === "playing" && !liveRoom ? <Button onClick={() => setPhase("paused")}>Pause</Button> : null}
           <Button
             onClick={() => {
               const node = rootRef.current;
@@ -237,6 +244,6 @@ function Playfield({ game, api, paused }: { game: Game; api: GameAPI; paused: bo
     case "two-player-fold":
       return <TwoPlayerFold {...shared} />;
     default:
-      return null;
+      return <CollectionGame {...shared} />;
   }
 }
