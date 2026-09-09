@@ -141,6 +141,20 @@ export interface Achievement {
   earnedAt: string;
 }
 
+export interface ActivityItem {
+  id: string;
+  at: string;
+  kind: "play" | "trophy" | "membership";
+  text: string;
+  href?: string;
+}
+
+export interface ProfileCard {
+  handle: string;
+  bio: string;
+  avatarDataUrl: string | null;
+}
+
 export interface CosmeticItem {
   id: string;
   kind: CosmeticKind;

@@ -11,6 +11,7 @@ import {
 import { isMember, membershipChip } from "../lib/access";
 import { api } from "../lib/api";
 import { useApp } from "../state/AppState";
+import { PlayerAvatar } from "./PlayerAvatar";
 import type { Entitlement, PlanId, UserProfile } from "../types";
 
 const ITEMS: { to: string; label: string; icon: typeof IconUser; admin?: boolean }[] = [
@@ -21,12 +22,6 @@ const ITEMS: { to: string; label: string; icon: typeof IconUser; admin?: boolean
   { to: "/admin", label: "Operations", icon: IconTool, admin: true },
 ];
 
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-  return (parts[0]?.slice(0, 2) || "?").toUpperCase();
-}
-
 function tierClass(planId: PlanId | null, member: boolean) {
   if (!member || !planId) return "account-tier account-tier-free";
   if (planId === "tide") return "account-tier account-tier-tide";
@@ -35,7 +30,7 @@ function tierClass(planId: PlanId | null, member: boolean) {
 }
 
 export function AccountMenu({ user }: { user: UserProfile }) {
-  const { entitlement: localEntitlement, logout } = useApp();
+  const { entitlement: localEntitlement, logout, profileCard } = useApp();
   const [entitlement, setEntitlement] = useState(localEntitlement);
   const navigate = useNavigate();
   const location = useLocation();
@@ -90,14 +85,12 @@ export function AccountMenu({ user }: { user: UserProfile }) {
         aria-label="Account menu"
         onClick={() => setOpen((value) => !value)}
       >
-        {initials(user.displayName)}
+        <PlayerAvatar name={user.displayName} avatarId={user.avatarId} photoUrl={profileCard.avatarDataUrl} size={40} />
       </button>
       {open ? (
         <div className="account-dropdown" role="menu" aria-label="Account">
           <div className="account-dropdown-head">
-            <div className="account-dropdown-avatar" aria-hidden="true">
-              {initials(user.displayName)}
-            </div>
+            <PlayerAvatar name={user.displayName} avatarId={user.avatarId} photoUrl={profileCard.avatarDataUrl} size={44} />
             <div className="account-dropdown-meta">
               <p className="account-dropdown-name">{user.displayName}</p>
               <p className="account-dropdown-email">{user.email}</p>

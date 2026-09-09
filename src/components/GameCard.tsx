@@ -1,13 +1,19 @@
 import { Link } from "react-router-dom";
 import { useReducedMotion } from "framer-motion";
 import type { Game } from "../types";
+import { accessForGame, canLaunch } from "../lib/access";
+import { isFreeToday } from "../lib/time";
+import { useApp } from "../state/AppState";
 import { Badge } from "./ui";
 import { GamePreview } from "./GamePreview";
 
 export function GameCard({ game }: { game: Game }) {
   const reduce = useReducedMotion();
+  const { entitlement, remainingFreeSessions } = useApp();
+  const access = accessForGame(game, entitlement, remainingFreeSessions, isFreeToday(game.slug));
+  const locked = access.kind === "locked" || access.kind === "capped";
   return (
-    <Link className={`card game-card ${reduce ? "no-flip" : ""}`} to={`/games/${game.slug}`}>
+    <Link className={`card game-card ${reduce ? "no-flip" : ""} ${locked ? "is-locked" : ""}`} to={`/games/${game.slug}`}>
       <div className="art">
         <div className="art-flip">
           <div className="art-face art-front">
@@ -22,19 +28,20 @@ export function GameCard({ game }: { game: Game }) {
             <Badge tone="new">New</Badge>
           </span>
         ) : null}
+        {locked ? <div className="lock-veil">{access.kind === "capped" ? "Session used" : "Members"}</div> : null}
       </div>
       <div className="body">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
           <strong style={{ color: "var(--white)" }}>{game.title}</strong>
           <span style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <Badge tone="free">Free to play</Badge>
+            <Badge tone={canLaunch(access) ? "free" : "warn"}>{access.label}</Badge>
           </span>
         </div>
         <div className="meta">
           {game.genre} · {game.sessionMinutes} min
         </div>
         <span className="card-action">
-          Game details <span aria-hidden="true">↗</span>
+          {locked ? "Unlock from ₹399" : "Play"} <span aria-hidden="true">↗</span>
         </span>
       </div>
     </Link>

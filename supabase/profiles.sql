@@ -119,5 +119,11 @@ GRANT UPDATE (display_name, avatar_id, avatar_url, onboarding_complete)
   ON public.profiles TO authenticated;
 GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
 
+-- Optional identity fields for display name vs @handle (run once when ready):
+-- ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio text;
+-- ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS handle citext;
+-- CREATE UNIQUE INDEX IF NOT EXISTS profiles_handle_unique ON public.profiles (handle) WHERE handle IS NOT NULL;
+-- GRANT UPDATE (display_name, avatar_id, avatar_url, onboarding_complete, bio, handle) ON public.profiles TO authenticated;
+
 -- Promote an admin in the SQL editor only (never from the app):
 -- UPDATE public.profiles SET role = 'admin' WHERE email = 'you@example.com';

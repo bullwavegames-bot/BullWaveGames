@@ -141,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim().toLowerCase(),
           password,
-          options: { emailRedirectTo: `${origin}/verify-email` },
+          options: { emailRedirectTo: `${origin}/welcome` },
         });
         if (error) return { ok: false, error: authMessage(error, "Could not create the account.") };
         return { ok: true, needsConfirm: !data.session };

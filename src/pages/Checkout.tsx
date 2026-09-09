@@ -101,7 +101,7 @@ export function CheckoutPage() {
               razorpaySignature: response.razorpay_signature,
             }),
           })
-            .then(() => navigate(`/membership/payment-return?order=${created.orderId}`))
+            .then(() => navigate(`/payment-return?order=${created.orderId}`))
             .catch((cause: Error) => {
               setBusy(false);
               setError(cause.message);

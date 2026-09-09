@@ -2,13 +2,16 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { gameBySlug } from "../data/games";
 import { useApp } from "../state/AppState";
+import { accessForGame } from "../lib/access";
+import { isFreeToday } from "../lib/time";
+import { formatInr } from "../config/product";
 import { Badge, Button, ButtonLink, ErrorPanel, Notice } from "../components/ui";
 import { GameCard } from "../components/GameCard";
 
 export function GameDetailPage() {
   const { slug = "" } = useParams();
   const navigate = useNavigate();
-  const { games, user, bestFor } = useApp();
+  const { games, user, bestFor, entitlement, remainingFreeSessions } = useApp();
   const game = games.find((item) => item.slug === slug) ?? gameBySlug(slug);
   const [accessError, setAccessError] = useState(false);
   const [trailerFail] = useState(false);
@@ -22,8 +25,14 @@ export function GameDetailPage() {
     );
   }
 
+  const access = accessForGame(game, entitlement, remainingFreeSessions, isFreeToday(game.slug));
+  const canPlay = access.kind === "play" || access.kind === "play-free";
+
   const launch = () => {
-    if (game.maintenance || !game.published || game.unsupportedNote) return;
+    if (!canPlay) {
+      navigate("/membership");
+      return;
+    }
     navigate(`/play/${game.slug}`);
   };
 
@@ -43,13 +52,18 @@ export function GameDetailPage() {
           <p className="kicker">{game.genre}</p>
           <h1 className="display">{game.title}</h1>
           <p className="meta">
-            {game.sessionMinutes} min session · Free to play
+            {game.sessionMinutes} min session · {access.label}
           </p>
           {game.isNew ? <Badge tone="new">New</Badge> : null}
           <p>{game.description}</p>
           {game.maintenance ? <Badge tone="warn">Maintenance</Badge> : null}
           <div className="actions">
-            {!game.maintenance && !game.unsupportedNote ? <Button variant="primary" onClick={launch}>Play free</Button> : null}
+            {canPlay ? <Button variant="primary" onClick={launch}>{access.label}</Button> : null}
+            {access.kind === "locked" || access.kind === "capped" ? (
+              <ButtonLink to="/membership" variant="primary">
+                Unlock from {formatInr(399)}
+              </ButtonLink>
+            ) : null}
             {game.unsupportedNote ? <p>{game.unsupportedNote}</p> : null}
             {accessError ? <ErrorPanel message="We couldn’t confirm access. Try again." onRetry={() => setAccessError(false)} /> : null}
           </div>
@@ -88,7 +102,7 @@ export function GameDetailPage() {
             )}
           </div>
         ) : (
-          <Notice>Sign in to keep personal bests. Guests can play every published game.</Notice>
+          <Notice>Sign in to keep personal bests. Guests can play today’s free rotation, then unlock the studio from {formatInr(399)}.</Notice>
         )}
         <h2 style={{ marginTop: 28 }}>Related games</h2>
         <div className="grid-3">

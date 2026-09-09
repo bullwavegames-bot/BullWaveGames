@@ -24,7 +24,7 @@ export const config = {
     "CORS_ORIGINS",
     "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,https://bullwavegames.com,https://www.bullwavegames.com",
   ),
-  databaseUrl: required("DATABASE_URL", "postgres://bullwave:bullwave@127.0.0.1:5432/bullwave"),
+  databaseUrl: required("DATABASE_URL", "postgres://bullwave:bullwave@127.0.0.1:5433/bullwave"),
   redisUrl: required("REDIS_URL", "redis://127.0.0.1:6379"),
   jwtAccessSecret: required("JWT_ACCESS_SECRET", "dev-only-access-secret-change-me-32ch"),
   playSessionSecret: required("PLAY_SESSION_SECRET", "dev-only-play-session-secret-32ch"),

@@ -19,7 +19,8 @@ const categories = [
   { name: "Multiplayer Party", subtitle: "Better with friends", symbol: "✦", color: "#f16f78", games: ["Draw & Guess", "Multiplayer Ludo Rooms", "Trivia Battle (1v1 or Teams)"] },
 ];
 const features = [
-  ["All published games", "Yes", "Yes", "Yes", "Yes"],
+  ["Today’s free rotation", "Yes", "Yes", "Yes", "Yes"],
+  ["Full studio catalog", "—", "Yes", "Yes", "Yes"],
   ["Ads", "Yes", "Reduced", "Ad-free", "Ad-free"],
   ["Extra continues", "—", "Standard", "Extra", "Highest"],
   ["Early access to new releases", "—", "—", "Yes", "Yes"],
@@ -65,10 +66,10 @@ export function LandingPage() {
           </p>
           <motion.div className="actions" initial={reduce ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: reduce ? 0 : 0.24 }}>
             <ButtonLink to="/games" variant="primary">
-              Start Playing Free ↗
+              Play today’s free games
             </ButtonLink>
             <a className="btn btn-secondary" href="#plans">
-              See Membership Plans
+              See membership
             </a>
           </motion.div>
         </div>
@@ -81,11 +82,11 @@ export function LandingPage() {
 
       <Reveal as="section" className="wrap positioning" delay={0.05}>
         <div className="promise-bar" aria-label="Our promise">
-          {["⊘ No Betting", "⊘ No Cash Prizes", "✓ 100% Skill & Fun", "✓ All Ages Welcome"].map((label) => (
+          {["⊘ No Betting", "⊘ No Cash Prizes", "✓ Skill & fun", "18+ only"].map((label) => (
             <span key={label}>{label}</span>
           ))}
         </div>
-        <p>Bullwave Games is a pure arcade experience — every game here is about skill, relaxation, and fun. No wagering, no deposits-to-win, no cash payouts.</p>
+        <p>Bullwave Games is a browser arcade. Play today’s free rotation, then subscribe to unlock the studio. No wagering, no deposits-to-win, no cash payouts. Membership is Wave ₹399, Surge ₹799, or Tide ₹1499.</p>
       </Reveal>
 
       <section className="section" id="discover">
@@ -97,7 +98,7 @@ export function LandingPage() {
             </div>
             <span className="chip">36 playable games</span>
           </Reveal>
-          <p className="meta">Explore solo challenges and shared room games. Every published game is free to play; membership adds optional profile, cosmetic, and convenience perks. Room games need at least two connected players.</p>
+          <p className="meta">Guests play today’s free rotation. Members unlock the full catalog. Room games need at least two connected players.</p>
           <div className="category-tabs" role="tablist" aria-label="Game categories">
             {categories.map((item, index) => (
               <motion.button
@@ -201,8 +202,8 @@ export function LandingPage() {
                   <th scope="col">
                     <h3>Free</h3>
                     <div className="price">₹0</div>
-                    <p className="meta">All published games</p>
-                    <ButtonLink to="/games">Play Free</ButtonLink>
+                    <p className="meta">Today’s free rotation</p>
+                    <ButtonLink to="/games">Play free</ButtonLink>
                   </th>
                   {PLANS.map((plan) => (
                     <th scope="col" key={plan.id} className={plan.id === "surge" ? "highlight-plan" : ""}>
@@ -211,8 +212,8 @@ export function LandingPage() {
                       <p className="meta">
                         / month{annual ? ` · ${formatInr(Math.round(plan.monthlyPriceInr * 12 * 0.8))}/year*` : ""}
                       </p>
-                      <ButtonLink to={`/membership?plan=${plan.id}`} variant={plan.id === "surge" ? "primary" : "secondary"}>
-                        Get {plan.name}
+                      <ButtonLink to={`/register?plan=${plan.id}&return=${encodeURIComponent(`/membership/checkout?plan=${plan.id}`)}`} variant={plan.id === "surge" ? "primary" : "secondary"}>
+                        Join {plan.name}
                       </ButtonLink>
                     </th>
                   ))}
@@ -276,21 +277,21 @@ export function LandingPage() {
           <div className="steps" style={{ marginTop: 24 }}>
             <article>
               <span className="step-number">01</span>
-              <h3>Sign up in seconds</h3>
-              <p>Create your profile to save progress. Just browsing? Play any published game as a guest.</p>
+              <h3>Join free</h3>
+              <p>Create an account to save progress and collection. Guests can still try today’s free games.</p>
               <Link to="/register">Create an account →</Link>
             </article>
             <article>
               <span className="step-number">02</span>
-              <h3>Pick your kind of fun</h3>
-              <p>Choose cards, puzzles, arcade challenges, trivia, strategy, or a room game with friends.</p>
-              <a href="#discover">Explore the collection →</a>
+              <h3>Play today’s free rotation</h3>
+              <p>Three games rotate daily. Sessions are capped. No welcome coins, no fake jackpots.</p>
+              <Link to="/games">Open today’s free games →</Link>
             </article>
             <article>
               <span className="step-number">03</span>
-              <h3>Play instantly</h3>
-              <p>Right in your browser. No downloads or waiting — just a little time for yourself.</p>
-              <Link to="/games">Start playing free →</Link>
+              <h3>Subscribe to unlock the studio</h3>
+              <p>Wave ₹399, Surge ₹799, Tide ₹1499. Pay once per period — access until it ends.</p>
+              <Link to="/membership">See membership →</Link>
             </article>
           </div>
         </Reveal>
@@ -299,7 +300,7 @@ export function LandingPage() {
         <p className="kicker">Your next favorite break is here</p>
         <h2 className="display">A little chill. A little challenge.</h2>
         <ButtonLink to="/games" variant="primary">
-          Start Playing Free ↗
+          Start with today’s free games ↗
         </ButtonLink>
       </section>
     </div>

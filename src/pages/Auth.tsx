@@ -13,7 +13,7 @@ function validPassword(value: string) {
 }
 
 export function RegisterPage() {
-  const { setSelectedPlan } = useApp();
+  const { setSelectedPlan, setAge } = useApp();
   const { signUp, user, loading, configured } = useAuth();
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -23,21 +23,28 @@ export function RegisterPage() {
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [terms, setTerms] = useState(false);
+  const [adult, setAdult] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [inbox, setInbox] = useState(false);
 
   const submit = async () => {
     setError("");
     if (!email.includes("@")) return setError("Enter a valid email.");
     if (!validPassword(password)) return setError(PASSWORD_HINT);
-    if (!terms) return setError("Agree to the Terms to continue.");
+    if (!adult) return setError("You must confirm you are 18 or older.");
+    if (!terms) return setError("Agree to the Terms and Privacy Policy to continue.");
     setBusy(true);
     const result = await signUp(email, password);
     setBusy(false);
     if (!result.ok) return setError(result.error);
     if (plan) setSelectedPlan(plan);
-    if (result.needsConfirm) navigate("/verify-email");
-    else navigate("/welcome?return=" + encodeURIComponent(returnTo));
+    setAge("adult");
+    if (result.needsConfirm) {
+      setInbox(true);
+      return;
+    }
+    navigate("/welcome?return=" + encodeURIComponent(returnTo));
   };
 
   if (loading) return <p className="section wrap">Loading…</p>;
@@ -47,41 +54,54 @@ export function RegisterPage() {
     <div className="auth-layout">
       <div className="auth-art" aria-hidden="true" />
       <div className="auth-form">
-        <h1 className="display">Create account</h1>
-        <p>Your game or membership choice is kept. Payment is not asked here.</p>
-        {configured ? null : (
-          <Notice>Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to a root .env file.</Notice>
+        {inbox ? (
+          <>
+            <h1 className="display">Check your inbox</h1>
+            <p>We sent a confirmation link to {email}. Open it to continue to your username setup.</p>
+            <p className="meta">The link takes you to welcome — you will not need to visit this page again.</p>
+            <ButtonLink to="/login">Back to log in</ButtonLink>
+          </>
+        ) : (
+          <>
+            <h1 className="display">Create account</h1>
+            <p>Join free, play today’s rotation, then unlock the studio when you are ready.</p>
+            {configured ? null : (
+              <Notice>Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to a root .env file.</Notice>
+            )}
+            {plan ? <Notice>Selected plan: {plan}. You will return to checkout after welcome.</Notice> : null}
+            <Field label="Email">
+              <TextInput type="email" value={email} autoComplete="email" onChange={(event) => setEmail(event.target.value)} />
+            </Field>
+            <Field label="Password" hint={PASSWORD_HINT}>
+              <div style={{ display: "flex", gap: 8 }}>
+                <TextInput
+                  type={show ? "text" : "password"}
+                  value={password}
+                  autoComplete="new-password"
+                  onChange={(event) => setPassword(event.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <Button type="button" onClick={() => setShow((value) => !value)}>
+                  {show ? "Hide" : "Show"}
+                </Button>
+              </div>
+            </Field>
+            <label className="check">
+              <input type="checkbox" checked={adult} onChange={(event) => setAdult(event.target.checked)} />I am 18 or older.
+            </label>
+            <label className="check">
+              <input type="checkbox" checked={terms} onChange={(event) => setTerms(event.target.checked)} />
+              I agree to the <Link to="/terms-and-conditions">Terms</Link> and have read the <Link to="/privacy-policy">Privacy Policy</Link>.
+            </label>
+            {error ? <p className="error">{error}</p> : null}
+            <div className="actions">
+              <Button variant="primary" disabled={busy} onClick={() => void submit()}>
+                {busy ? "Creating…" : "Create account"}
+              </Button>
+              <ButtonLink to={`/login?return=${encodeURIComponent(returnTo)}`}>Log in</ButtonLink>
+            </div>
+          </>
         )}
-        {plan ? <Notice>Selected plan: {plan}. You will return to checkout after welcome.</Notice> : null}
-        <Field label="Email">
-          <TextInput type="email" value={email} autoComplete="email" onChange={(event) => setEmail(event.target.value)} />
-        </Field>
-        <Field label="Password" hint={PASSWORD_HINT}>
-          <div style={{ display: "flex", gap: 8 }}>
-            <TextInput
-              type={show ? "text" : "password"}
-              value={password}
-              autoComplete="new-password"
-              onChange={(event) => setPassword(event.target.value)}
-              style={{ flex: 1 }}
-            />
-            <Button type="button" onClick={() => setShow((value) => !value)}>
-              {show ? "Hide" : "Show"}
-            </Button>
-          </div>
-        </Field>
-        <label className="check">
-          <input type="checkbox" checked={terms} onChange={(event) => setTerms(event.target.checked)} />
-          I agree to the <Link to="/terms-and-conditions">Terms</Link> and have read the <Link to="/privacy-policy">Privacy Policy</Link>.
-        </label>
-        {error ? <p className="error">{error}</p> : null}
-        <div className="actions">
-          <Button variant="primary" disabled={busy} onClick={() => void submit()}>
-            {busy ? "Creating…" : "Create account"}
-          </Button>
-          <ButtonLink to={`/login?return=${encodeURIComponent(returnTo)}`}>Log in</ButtonLink>
-        </div>
-        <p className="meta">Google sign-in is hidden because it is not configured.</p>
       </div>
     </div>
   );
@@ -108,13 +128,28 @@ export function LoginPage() {
       return;
     }
     const profile = await refreshProfile();
-    setBusy(false);
     if (!profile?.onboarding_complete) navigate("/welcome?return=" + encodeURIComponent(returnTo));
     else navigate(returnTo);
   };
 
-  if (loading) return <p className="section wrap">Loading…</p>;
+  if (loading) {
+    return (
+      <div className="gate-screen">
+        <div className="gate-spinner" aria-hidden="true" />
+        <p>Signing you in…</p>
+      </div>
+    );
+  }
+  if (busy) {
+    return (
+      <div className="gate-screen">
+        <div className="gate-spinner" aria-hidden="true" />
+        <p>Taking you to the arcade…</p>
+      </div>
+    );
+  }
   if (user?.emailVerified && user.onboardingComplete) return <Navigate to={returnTo} replace />;
+  if (user?.emailVerified) return <Navigate to={`/welcome?return=${encodeURIComponent(returnTo)}`} replace />;
 
   return (
     <div className="auth-layout">
@@ -385,13 +420,13 @@ export function WelcomePage() {
         <>
           <img src="/covers/kite-line-cover.png" alt="Paper kite over a coastal city." style={{ borderRadius: 18, maxHeight: 280, objectFit: "cover", width: "100%" }} />
           <h1 className="display">Welcome to your browser arcade.</h1>
-          <p>Short sessions. Instant play. No download.</p>
+          <p>Short sessions. Instant play. No download. No coins.</p>
         </>
       ) : null}
       {step === 2 ? (
         <>
           <h1 className="display">Free stays free.</h1>
-          <p>Every published game is free to play. Membership adds optional cosmetics and convenience perks — Wave {PRODUCT.prototype ? "from ₹399 / month" : ""}.</p>
+          <p>Today’s three free games stay free. Membership unlocks the full studio — Wave from ₹399 / month.</p>
         </>
       ) : null}
       {step === 3 ? (

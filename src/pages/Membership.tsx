@@ -1,9 +1,13 @@
 import { useNavigate } from "react-router-dom";
 import { COMPARISON_ROWS, formatInr, PLANS, PRODUCT } from "../config/product";
 import { checkoutPath, isMember } from "../lib/access";
+import { startRazorpayCheckout } from "../lib/checkout";
 import { useApp } from "../state/AppState";
+import { useAuth } from "../state/AuthContext";
 import { Button, ButtonLink, Notice } from "../components/ui";
 import { PageIntro } from "../components/PageIntro";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 
 const FAQS = [
   {
@@ -12,7 +16,7 @@ const FAQS = [
   },
   {
     q: "What can I play without paying?",
-    a: "Every published game is free to play with no membership unlock or daily session limit. Account creation is only needed to save progress and use account features.",
+    a: "Today’s three free games, with a daily session cap. The full studio catalog needs Wave, Surge, or Tide.",
   },
   {
     q: "When does membership start?",
@@ -38,23 +42,54 @@ const FAQS = [
 
 export function MembershipPage() {
   const { user, entitlement, setSelectedPlan } = useApp();
+  const { session } = useAuth();
   const navigate = useNavigate();
   const member = isMember(entitlement);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   const join = (planId: (typeof PLANS)[number]["id"]) => {
     setSelectedPlan(planId);
     if (member && entitlement.planId === planId) return;
-    if (!user) {
+    if (!user || !session) {
       navigate(`/register?plan=${planId}&return=${encodeURIComponent(checkoutPath(planId))}`);
       return;
     }
-    navigate(checkoutPath(planId));
+    void pay(planId);
+  };
+
+  const pay = async (planId: (typeof PLANS)[number]["id"]) => {
+    if (!user) return;
+    const plan = PLANS.find((item) => item.id === planId);
+    if (!plan || busy) return;
+    setError("");
+    setBusy(true);
+    try {
+      await startRazorpayCheckout({
+        planId,
+        planName: plan.name,
+        email: user.email,
+        displayName: user.displayName,
+        onDismiss: () => {
+          setBusy(false);
+          setError("Checkout was closed before payment finished.");
+        },
+        onVerified: (orderId) => navigate(`/payment-return?order=${orderId}`),
+        onError: (message) => {
+          setBusy(false);
+          setError(message);
+        },
+      });
+    } catch (cause) {
+      setBusy(false);
+      setError(cause instanceof Error ? cause.message : "Could not start checkout.");
+    }
   };
 
   return (
     <div className="section">
       <div className="wrap">
-        <PageIntro eyebrow="Choose your wave" title="Make the arcade yours." description="Every game stays free. Membership adds personal touches, cosmetics, and convenience perks.">
+        <PageIntro eyebrow="Choose your wave" title="Unlock the studio." description="Today’s free rotation stays free. Membership opens the full catalog. Wave ₹399 · Surge ₹799 · Tide ₹1499.">
           <div className="intro-perks"><span>✦ Original games</span><span>◇ Personal touches</span><span>↗ Play in your browser</span></div>
         </PageIntro>
         {member && entitlement.planId ? (
@@ -83,19 +118,20 @@ export function MembershipPage() {
                   <Button disabled className="btn-full">
                     Current plan
                   </Button>
-                ) : user ? (
-                  <Button variant="primary" className="btn-full" onClick={() => join(plan.id)}>
-                    Pay {formatInr(plan.monthlyPriceInr)}
-                  </Button>
                 ) : (
-                  <Button variant="primary" className="btn-full" onClick={() => join(plan.id)}>
-                    Join {plan.name}
+                  <Button variant="primary" className="btn-full" disabled={busy} onClick={() => join(plan.id)}>
+                    {user ? `Pay ${formatInr(plan.monthlyPriceInr)}` : `Join ${plan.name}`}
                   </Button>
                 )}
+                <p className="plan-legal">
+                  <Link to="/terms-and-conditions">Terms</Link> · <Link to="/refund-and-cancellation-policy">Refund</Link> ·{" "}
+                  <Link to="/shipping-and-delivery-policy">Shipping</Link> · <Link to="/contact">Contact</Link>
+                </p>
               </article>
             );
           })}
         </div>
+        {error ? <p className="error" style={{ marginTop: 16 }}>{error}</p> : null}
         <h2 style={{ marginTop: 48 }}>Compare</h2>
         <div className="panel" style={{ overflowX: "auto" }}>
           <table className="table compare">

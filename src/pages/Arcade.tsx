@@ -1,30 +1,39 @@
-import { Link } from "react-router-dom";
 import { SAMPLE_LEADERBOARD, WEEKLY_CHALLENGE, COSMETICS } from "../data/content";
-import { isMember, membershipChip } from "../lib/access";
+import { accessForGame, isMember } from "../lib/access";
+import { isFreeToday } from "../lib/time";
 import { useApp } from "../state/AppState";
 import { GameCard } from "../components/GameCard";
-import { Badge, Button, ButtonLink, EmptyState, Field, Notice, TextInput } from "../components/ui";
+import { PlanChip } from "../components/PlanChip";
+import { Badge, Button, ButtonLink, EmptyState, Notice } from "../components/ui";
 import { useState } from "react";
 import { todaysRotation } from "../lib/time";
 import { formatKolkata } from "../lib/time";
+import { formatInr } from "../config/product";
 
 export function ArcadeHomePage() {
-  const { user, entitlement, games, store, identityKey } = useApp();
+  const { user, entitlement, games, store, identityKey, remainingFreeSessions } = useApp();
   const rotation = todaysRotation();
+  const member = isMember(entitlement);
   const continueSlugs = Object.keys(store.saves)
     .filter((key) => key.startsWith(identityKey))
     .map((key) => store.saves[key]);
   const achievements = store.achievements[identityKey] ?? [];
+  const catalog = games.filter((game) => game.published);
   return (
     <div className="section">
-      <div className="wrap">
+      <div className="wrap home-hero-band">
         <p className="kicker">Arcade</p>
         <h1 className="display">What will you play today?</h1>
-        <p>
-          Hello {user?.displayName ?? "there"}. <span className="chip">{membershipChip(entitlement)}</span>
+        <p className="home-hello">
+          Hello {user?.displayName ?? "there"}. <PlanChip entitlement={entitlement} />
         </p>
+        {member ? null : (
+          <p className="meta">
+            {remainingFreeSessions} free session{remainingFreeSessions === 1 ? "" : "s"} left today. Unlock the studio from {formatInr(399)}.
+          </p>
+        )}
         <section style={{ marginTop: 32 }}>
-          <h2>Today’s quick picks</h2>
+          <h2>Today’s free three</h2>
           <div className="grid-3">
             {rotation.map((game) => (
               <GameCard key={game.slug} game={game} />
@@ -38,34 +47,45 @@ export function ArcadeHomePage() {
               {continueSlugs.map((save) => {
                 const game = games.find((item) => item.slug === save.slug);
                 if (!game) return null;
+                const access = accessForGame(game, entitlement, remainingFreeSessions, isFreeToday(game.slug));
+                const locked = access.kind === "locked" || access.kind === "capped";
                 return (
                   <article key={save.slug} className="panel">
                     <h3>{game.title}</h3>
                     <p className="meta">{save.label}</p>
-                    <ButtonLink to={`/play/${game.slug}`} variant="primary">
-                      {save.payload ? "Resume" : "Play again"}
-                    </ButtonLink>
+                    {locked ? (
+                      <ButtonLink to="/membership" variant="primary">
+                        Unlock from {formatInr(399)}
+                      </ButtonLink>
+                    ) : (
+                      <ButtonLink to={`/play/${game.slug}`} variant="primary">
+                        {save.payload ? "Resume" : "Play again"}
+                      </ButtonLink>
+                    )}
                   </article>
                 );
               })}
             </div>
           ) : (
-            <EmptyState title="Your arcade fills as you play. Start with a quick pick." />
+            <EmptyState title="Your arcade fills as you play. Start with today’s free three." />
           )}
         </section>
         <section style={{ marginTop: 36 }}>
-          <h2>Full studio catalog</h2>
+          <div className="section-head">
+            <h2>Studio catalog</h2>
+            {member ? null : <ButtonLink to="/membership">Unlock from {formatInr(399)}</ButtonLink>}
+          </div>
           <div className="grid-3">
-            {games.filter((game) => game.published).map((game) => (
+            {catalog.map((game) => (
               <GameCard key={game.slug} game={game} />
             ))}
           </div>
         </section>
-        <section className="panel" style={{ marginTop: 36 }}>
+        <section className="panel challenge-banner" style={{ marginTop: 36 }}>
           <p className="kicker">Weekly challenge</p>
           <h2>{WEEKLY_CHALLENGE.name}</h2>
           <p>
-            {WEEKLY_CHALLENGE.modifier} Reward: {WEEKLY_CHALLENGE.cosmeticReward}.
+            {WEEKLY_CHALLENGE.modifier} Reward: {WEEKLY_CHALLENGE.cosmeticReward}. Score only — no buy-in.
           </p>
           <ButtonLink to="/challenges" variant="primary">
             Open challenge
@@ -73,7 +93,7 @@ export function ArcadeHomePage() {
         </section>
         {achievements.length ? (
           <section style={{ marginTop: 36 }}>
-            <h2>Recent achievements</h2>
+            <h2>Trophies</h2>
             <div className="filters">
               {achievements.map((item) => (
                 <span key={item.id} className="chip">
@@ -101,6 +121,10 @@ export function ChallengesPage() {
     <div className="section wrap">
       <p className="kicker">Challenges</p>
       <h1 className="display">A fresh challenge. A new personal best.</h1>
+      <div className="actions" style={{ marginBottom: 16 }}>
+        <ButtonLink to="/challenges/daily">Daily Challenge</ButtonLink>
+        <ButtonLink to="/leaderboards">Leaderboards</ButtonLink>
+      </div>
       <div className="panel">
         <h2>{WEEKLY_CHALLENGE.name}</h2>
         <p>Game: {WEEKLY_CHALLENGE.gameSlug}</p>
@@ -203,87 +227,6 @@ export function CollectionPage() {
               </>
             );
           })()}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-export function ProfilePage() {
-  const { user, entitlement, store, identityKey, updateProfile, avatars, games } = useApp();
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(user?.displayName ?? "");
-  const [avatar, setAvatar] = useState(user?.avatarId ?? "lantern");
-  const bests = Object.values(store.bests).filter((_, index, all) => true);
-  const mine = Object.entries(store.bests)
-    .filter(([key]) => key.startsWith(identityKey))
-    .map(([, value]) => value);
-  const stars = mine.reduce((sum, item) => sum + item.stars, 0);
-  const trophies = store.achievements[identityKey] ?? [];
-  if (!user) return <ButtonLink to="/login">Log in</ButtonLink>;
-  return (
-    <div className="section wrap">
-      <div style={{ textAlign: "center" }}>
-        <div className="avatar" style={{ width: 88, height: 88, margin: "0 auto 12px", fontSize: 28 }}>
-          {user.displayName.slice(0, 1)}
-        </div>
-        <h1 className="display">{user.displayName}</h1>
-        <span className="chip">{membershipChip(entitlement)}</span>
-      </div>
-      <div className="grid-2" style={{ marginTop: 28 }}>
-        <article className="panel">
-          <h3>Games played</h3>
-          <p>{mine.length}</p>
-        </article>
-        <article className="panel">
-          <h3>Total stars</h3>
-          <p>{stars}</p>
-        </article>
-        <article className="panel">
-          <h3>Current streak</h3>
-          <p>{mine.length ? "1 day (prototype local count)" : "—"}</p>
-        </article>
-        <article className="panel">
-          <h3>Trophies</h3>
-          <p>{trophies.length ? trophies.map((item) => item.title).join(", ") : "No trophies yet."}</p>
-        </article>
-      </div>
-      <h2>Personal bests</h2>
-      {mine.length === 0 ? (
-        <EmptyState title="Your arcade fills as you play. Start with today’s three." />
-      ) : (
-        mine.map((item) => (
-          <p key={item.slug}>
-            {games.find((game) => game.slug === item.slug)?.title}: {item.score}
-          </p>
-        ))
-      )}
-      <Button onClick={() => setEditing(true)}>Edit profile</Button>
-      {editing ? (
-        <div className="panel" style={{ marginTop: 16 }}>
-          <Field label="Display name">
-            <TextInput value={name} onChange={(event) => setName(event.target.value)} />
-          </Field>
-          <div className="filters">
-            {avatars.map((id) => (
-              <button key={id} type="button" aria-pressed={avatar === id} onClick={() => setAvatar(id)}>
-                {id}
-              </button>
-            ))}
-          </div>
-          <div className="actions">
-            <Button
-              variant="primary"
-              onClick={() => {
-                void updateProfile(name, avatar).then((result) => {
-                  if (result.ok) setEditing(false);
-                });
-              }}
-            >
-              Save
-            </Button>
-            <Button onClick={() => setEditing(false)}>Cancel</Button>
-          </div>
         </div>
       ) : null}
     </div>

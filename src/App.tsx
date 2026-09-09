@@ -8,7 +8,9 @@ import { MembershipPage } from "./pages/Membership";
 import { ContactPage, StoriesPage, StoryDetailPage } from "./pages/StoriesContact";
 import { MaintenancePage, NotFoundPage, PrivacyPage, RefundPage, ServerErrorPage, ShippingPage, TermsPage } from "./pages/Policies";
 import { ForgotPage, LoginPage, RegisterPage, ResetPage, VerifyPage, WelcomePage } from "./pages/Auth";
-import { ArcadeHomePage, ChallengesPage, CollectionPage, ProfilePage } from "./pages/Arcade";
+import { ArcadeHomePage, ChallengesPage, CollectionPage } from "./pages/Arcade";
+import { ProfilePage } from "./pages/Profile";
+import { DailyChallengePage, FriendsPage, LeaderboardsPage, PublicProfilePage } from "./pages/Social";
 import { GameSessionPage } from "./pages/GameSession";
 import { CheckoutPage, PaymentReturnPage } from "./pages/Checkout";
 import { BillingPage, HelpArticlePage, HelpPage, SettingsPage } from "./pages/Account";
@@ -24,13 +26,14 @@ import { useAuth } from "./state/AuthContext";
 
 function LoadingScreen() {
   return (
-    <div className="section wrap">
+    <div className="gate-screen">
+      <div className="gate-spinner" aria-hidden="true" />
       <p>Loading…</p>
     </div>
   );
 }
 
-function RequireAuth({ children }: { children: ReactNode }) {
+function RequireAuth({ children, skipOnboarding }: { children: ReactNode; skipOnboarding?: boolean }) {
   const { user, loading, session } = useAuth();
   const location = useLocation();
   if (loading) return <LoadingScreen />;
@@ -38,17 +41,14 @@ function RequireAuth({ children }: { children: ReactNode }) {
     return <Navigate to={`/login?return=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
   if (!user.emailVerified) return <Navigate to="/verify-email" replace />;
+  if (!skipOnboarding && !user.onboardingComplete && location.pathname !== "/welcome") {
+    return <Navigate to={`/welcome?return=${encodeURIComponent(location.pathname + location.search)}`} replace />;
+  }
   return <>{children}</>;
 }
 
 function RequireOnboarded({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
-  if (loading) return <LoadingScreen />;
-  return (
-    <RequireAuth>
-      {user && !user.onboardingComplete ? <Navigate to="/welcome" replace /> : children}
-    </RequireAuth>
-  );
+  return <RequireAuth>{children}</RequireAuth>;
 }
 
 function RequireAdmin({ children }: { children: ReactNode }) {
@@ -107,15 +107,19 @@ export default function App() {
             </RequireOnboarded>
           }
         />
+        <Route path="/play/:slug" element={<GameSessionPage />} />
+        <Route path="/challenges" element={<ChallengesPage />} />
+        <Route path="/challenges/daily" element={<DailyChallengePage />} />
+        <Route path="/leaderboards" element={<LeaderboardsPage />} />
         <Route
-          path="/play/:slug"
+          path="/friends"
           element={
             <RequireOnboarded>
-              <GameSessionPage />
+              <FriendsPage />
             </RequireOnboarded>
           }
         />
-        <Route path="/challenges" element={<ChallengesPage />} />
+        <Route path="/u/:handle" element={<PublicProfilePage />} />
         <Route
           path="/collection"
           element={
@@ -140,7 +144,22 @@ export default function App() {
             </RequireOnboarded>
           }
         />
-        <Route path="/membership/payment-return" element={<PaymentReturnPage />} />
+        <Route
+          path="/payment-return"
+          element={
+            <RequireAuth skipOnboarding>
+              <PaymentReturnPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/membership/payment-return"
+          element={
+            <RequireAuth skipOnboarding>
+              <PaymentReturnPage />
+            </RequireAuth>
+          }
+        />
         <Route
           path="/billing"
           element={

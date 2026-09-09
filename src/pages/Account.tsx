@@ -176,7 +176,12 @@ export function SettingsPage() {
       {settings.reminderEnabled ? <Button onClick={clearBreakReminder}>Remove reminder</Button> : null}
       <h2>Language</h2>
       <p>English</p>
-      <h2>Account</h2>
+      <h2 id="privacy">Privacy</h2>
+      <p>Your display name, handle, and bio stay on this device until Friends launches. Avatar photos are stored locally and are not uploaded yet.</p>
+      <p>
+        <Link to="/privacy-policy">Read the privacy policy</Link>
+      </p>
+      <h2 id="account">Account</h2>
       <p>Login email {user.email}</p>
       <Field label="Current password">
         <TextInput type="password" value={current} onChange={(event) => setCurrent(event.target.value)} />

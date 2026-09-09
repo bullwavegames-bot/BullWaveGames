@@ -10,14 +10,14 @@ import type { Genre } from "../types";
 const GENRES: Array<"All" | Genre> = ["All", "Card & Board", "Puzzle", "Arcade & Skill", "Trivia & Quiz", "Strategy & Simulation", "Multiplayer Party", "Reflex", "Rhythm", "Party", "Calm"];
 
 export function CatalogPage() {
-  const { games } = useApp();
+  const { games, store } = useApp();
   const [params, setParams] = useSearchParams();
   const [loading] = useState(false);
   const [error, setError] = useState(false);
   const [sheet, setSheet] = useState(false);
   const q = params.get("q") ?? "";
   const genre = (params.get("genre") as Genre | "All") || "All";
-  const sort = params.get("sort") ?? "new";
+  const sort = params.get("sort") ?? "featured";
 
   const set = (key: string, value: string) => {
     const next = new URLSearchParams(params);
@@ -31,10 +31,16 @@ export function CatalogPage() {
     if (q) list = list.filter((game) => game.title.toLowerCase().includes(q.toLowerCase()));
     if (genre !== "All") list = list.filter((game) => game.genre === genre);
     if (sort === "short") list.sort((a, b) => a.sessionMinutes - b.sessionMinutes);
-    if (sort === "popular") list.sort((a, b) => a.title.localeCompare(b.title));
-    if (sort === "new") list.sort((a, b) => a.title.localeCompare(b.title));
+    if (sort === "new") list.sort((a, b) => Number(Boolean(b.isNew)) - Number(Boolean(a.isNew)) || a.title.localeCompare(b.title));
+    if (sort === "popular") {
+      const totals: Record<string, number> = {};
+      for (const byUser of Object.values(store.playCounts ?? {})) {
+        for (const [slug, count] of Object.entries(byUser)) totals[slug] = (totals[slug] ?? 0) + count;
+      }
+      list.sort((a, b) => (totals[b.slug] ?? 0) - (totals[a.slug] ?? 0) || a.title.localeCompare(b.title));
+    }
     return list;
-  }, [games, q, genre, sort]);
+  }, [games, q, genre, sort, store.playCounts]);
 
   const filters = (
     <>
@@ -51,16 +57,19 @@ export function CatalogPage() {
       </div>
       <div className="filters" aria-label="Sort">
         {[
+          ["featured", "Featured"],
           ["new", "New"],
           ["popular", "Popular"],
           ["short", "Short session"],
         ].map(([value, label]) => (
-          <button key={value} type="button" aria-pressed={sort === value} onClick={() => set("sort", value)}>
+          <button key={value} type="button" aria-pressed={sort === value} onClick={() => set("sort", value === "featured" ? "" : value)}>
             {label}
           </button>
         ))}
       </div>
-      {sort === "popular" ? <p className="meta">Popular ordering is sample prototype data — not live aggregate play.</p> : null}
+      {sort === "popular" ? (
+        <p className="meta">Popular uses play counts on this browser until live studio ranking ships.</p>
+      ) : null}
     </>
   );
 

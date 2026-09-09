@@ -15,7 +15,7 @@ export const PRODUCT = {
   audience: "India-first",
   positioning: "Play every published browser game free. Membership adds optional studio perks.",
   timezone: "Asia/Kolkata",
-  ageMinimum: 0,
+  ageMinimum: 18,
   soundMutedByDefault: true,
   maxContentWidth: 1200,
   /**
@@ -30,6 +30,9 @@ export const PRODUCT = {
     taxIncludedInDisplayedPrice: true,
     taxBreakdownAvailable: false,
     googleSignInConfigured: false,
+    phoneRequired: false,
+    mfaEnabled: false,
+    referralPrompt: false,
     emailVerificationRequiredForPlay: true,
     crossDeviceReminders: false,
     deletionImmediate: true,
@@ -55,7 +58,7 @@ export const PLANS: Plan[] = [
     id: "wave",
     name: "Wave",
     monthlyPriceInr: 399,
-    benefits: ["No ads", "Standard frames", "Extra continue"],
+    benefits: ["Full catalog", "No ads", "Standard frames", "Extra continue"],
   },
   {
     id: "surge",
@@ -64,7 +67,7 @@ export const PLANS: Plan[] = [
     benefits: [
       "Everything in Wave",
       "Extra continues",
-      "Weekly challenge cosmetics",
+      "Weekly cosmetics",
       "Early access to new games",
     ],
   },
@@ -92,7 +95,8 @@ export function formatInr(amount: number): string {
 }
 
 export const COMPARISON_ROWS: { feature: string; wave: string; surge: string; tide: string }[] = [
-  { feature: "All published games", wave: "Free for everyone", surge: "Free for everyone", tide: "Free for everyone" },
+  { feature: "Today’s free rotation", wave: "Included", surge: "Included", tide: "Included" },
+  { feature: "Full studio catalog", wave: "Yes", surge: "Yes", tide: "Yes" },
   { feature: "Ad-free access", wave: "Yes", surge: "Yes", tide: "Yes" },
   { feature: "Standard frames", wave: "Yes", surge: "Yes", tide: "Yes" },
   {
@@ -116,4 +120,6 @@ export const SAFE_RETURN_PREFIXES = [
   "/profile",
   "/billing",
   "/welcome",
+  "/friends",
+  "/leaderboards",
 ] as const;

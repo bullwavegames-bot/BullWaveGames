@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { continueCap } from "../lib/access";
+import { continueCap, accessForGame } from "../lib/access";
+import { isFreeToday } from "../lib/time";
+import { formatInr } from "../config/product";
 import { gameBySlug } from "../data/games";
 import { useApp } from "../state/AppState";
 import { Button, ButtonLink, Dialog } from "../components/ui";
@@ -22,7 +24,7 @@ export function GameSessionPage() {
 function GameSession() {
   const { slug = "" } = useParams();
   const navigate = useNavigate();
-  const { games, entitlement, recordResult, settings } = useApp();
+  const { games, entitlement, recordResult, settings, remainingFreeSessions, consumeFreeSession, user } = useApp();
   const game = games.find((item) => item.slug === slug) ?? gameBySlug(slug);
   const liveRoom = ["draw-guess", "multiplayer-ludo", "live-trivia", "trivia-battle"].includes(slug);
   const [phase, setPhase] = useState<"idle" | "playing" | "paused" | "results">("idle");
@@ -44,7 +46,12 @@ function GameSession() {
     );
   }
 
+  const access = game ? accessForGame(game, entitlement, remainingFreeSessions, isFreeToday(game.slug)) : null;
+  const blocked = access?.kind === "locked" || access?.kind === "capped";
+
   const start = () => {
+    if (!game || blocked) return;
+    if (access?.kind === "play-free" && !consumeFreeSession()) return;
     if (!started.current) started.current = true;
     setLoadError(false);
     setPhase("playing");
@@ -101,7 +108,24 @@ function GameSession() {
         </div>
       </div>
       <div className="playfield">
-        {phase === "idle" ? (
+        {phase === "idle" && blocked ? (
+          <div className="overlay">
+            <div className="panel" style={{ maxWidth: 480 }}>
+              <h1 className="display" style={{ fontSize: 32 }}>
+                Unlock the studio
+              </h1>
+              <p>{access?.kind === "capped" ? "Today’s free sessions are used." : "This title is in the member catalog."} Membership starts from {formatInr(399)}.</p>
+              <div className="actions">
+                <ButtonLink to="/membership" variant="primary">
+                  See membership
+                </ButtonLink>
+                {user ? null : <ButtonLink to={`/register?return=${encodeURIComponent(`/play/${game.slug}`)}`}>Register</ButtonLink>}
+                {user ? null : <ButtonLink to={`/login?return=${encodeURIComponent(`/play/${game.slug}`)}`}>Log in</ButtonLink>}
+              </div>
+            </div>
+          </div>
+        ) : null}
+        {phase === "idle" && !blocked ? (
           <div className="overlay">
             <div className="panel" style={{ maxWidth: 480 }}>
               <h1 className="display" style={{ fontSize: 36 }}>
@@ -165,6 +189,11 @@ function GameSession() {
                   Play again
                 </Button>
                 <ButtonLink to="/games">Next game</ButtonLink>
+                {blocked || access?.kind === "play-free" ? (
+                  <ButtonLink to="/membership" variant="primary">
+                    Unlock from {formatInr(399)}
+                  </ButtonLink>
+                ) : null}
                 <ButtonLink to="/play">Back to arcade</ButtonLink>
               </div>
             </div>

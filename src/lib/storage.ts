@@ -32,6 +32,9 @@ export interface PersistedStore {
   breakReminder: { until: number; label: string } | null;
   selectedPlan: import("../types").PlanId | null;
   billingEmails: Record<string, string>;
+  profileCards: Record<string, import("../types").ProfileCard>;
+  playCounts: Record<string, Record<string, number>>;
+  activity: Record<string, import("../types").ActivityItem[]>;
 }
 
 function empty(): PersistedStore {
@@ -74,6 +77,9 @@ function empty(): PersistedStore {
     breakReminder: null,
     selectedPlan: null,
     billingEmails: {},
+    profileCards: {},
+    playCounts: {},
+    activity: {},
   };
 }
 

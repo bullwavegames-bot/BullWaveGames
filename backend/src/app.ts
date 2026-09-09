@@ -18,7 +18,7 @@ import { attachRooms } from "./rooms/ws.js";
 
 export async function buildApp() {
   const app = Fastify({
-    logger: logger as never,
+    loggerInstance: logger,
     trustProxy: true,
     bodyLimit: 1024 * 64,
   });

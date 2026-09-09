@@ -17,20 +17,25 @@ export function continueCap(entitlement: Entitlement): number {
 }
 
 export type AccessState =
-  | { kind: "play-free"; label: "Play free" }
+  | { kind: "play-free"; label: "Play free today" }
   | { kind: "play"; label: "Play" }
+  | { kind: "locked"; label: "Unlock with membership" }
+  | { kind: "capped"; label: "Free session used" }
   | { kind: "maintenance"; label: "Unavailable" }
   | { kind: "unsupported"; label: "Not supported here" };
 
 export function accessForGame(
   game: Game,
   entitlement: Entitlement,
-  _freeSessionsRemaining: number,
+  freeSessionsRemaining: number,
+  freeToday: boolean,
 ): AccessState {
   if (game.maintenance || !game.published) return { kind: "maintenance", label: "Unavailable" };
   if (game.unsupportedNote) return { kind: "unsupported", label: "Not supported here" };
   if (isMember(entitlement)) return { kind: "play", label: "Play" };
-  return { kind: "play-free", label: "Play free" };
+  if (freeToday && freeSessionsRemaining > 0) return { kind: "play-free", label: "Play free today" };
+  if (freeToday) return { kind: "capped", label: "Free session used" };
+  return { kind: "locked", label: "Unlock with membership" };
 }
 
 export function canLaunch(access: AccessState): boolean {
@@ -43,7 +48,7 @@ export function membershipChip(entitlement: Entitlement): string {
   }
   if (entitlement.status === "pending") return "Payment pending";
   if (entitlement.status === "expired") return "Access ended";
-  return "Free play";
+  return "Free";
 }
 
 export function planFromQuery(value: string | null): PlanId | null {
@@ -64,7 +69,8 @@ export function allowlistReturn(raw: string | null | undefined, fallback = "/pla
       const plan = planFromQuery(url.searchParams.get("plan"));
       return plan ? checkoutPath(plan) : "/membership";
     }
-    const allowed = ["/play", "/games", "/membership", "/challenges", "/collection", "/profile", "/billing", "/welcome", "/settings", "/help"];
+    if (path.startsWith("/payment-return") || path.startsWith("/membership/payment-return")) return path;
+    const allowed = ["/play", "/games", "/membership", "/challenges", "/collection", "/profile", "/billing", "/welcome", "/settings", "/help", "/payment-return"];
     if (allowed.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) return path;
   } catch {
     return fallback;

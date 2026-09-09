@@ -12,6 +12,7 @@ import { COSMETICS } from "../data/content";
 import { GAMES } from "../data/games";
 import { emptyEntitlement, loadStore, saveStore, type PersistedStore } from "../lib/storage";
 import { isMember } from "../lib/access";
+import { kolkataDateKey } from "../lib/time";
 import { useAuth } from "./AuthContext";
 import type {
   Entitlement,
@@ -22,6 +23,7 @@ import type {
   PaymentStatus,
   PersonalBest,
   PlanId,
+  ProfileCard,
   UserProfile,
 } from "../types";
 
@@ -49,6 +51,8 @@ interface AppContextValue {
   selectedPlan: PlanId | null;
   avatars: string[];
   identityKey: string;
+  remainingFreeSessions: number;
+  consumeFreeSession: () => boolean;
   setIntroDone: () => void;
   setAge: (age: PersistedStore["age"]) => void;
   toast: (text: string, tone?: "ok" | "err" | "info") => void;
@@ -57,6 +61,8 @@ interface AppContextValue {
   logout: () => void;
   completeOnboarding: (name: string, avatarId: string) => Promise<{ ok: true } | { ok: false; error: string }>;
   updateProfile: (name: string, avatarId: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  saveProfileCard: (card: ProfileCard) => { ok: true } | { ok: false; error: string };
+  profileCard: ProfileCard;
   patchSettings: (patch: Partial<Settings>) => void;
   recordResult: (result: { slug: string; score: number; stars: number; metric?: string; save?: GameSave }) => void;
   equip: (id: string) => { ok: true } | { ok: false; error: string };
@@ -111,8 +117,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     : null;
   const identityKey = user?.id ?? `guest:${store.guestKey}`;
   const entitlement = store.entitlementByUser[identityKey] ?? emptyEntitlement();
+  const sessionDayKey = `${identityKey}:${kolkataDateKey()}`;
+  const remainingFreeSessions = isMember(entitlement)
+    ? PRODUCT.prototype.freeSessionAllowance
+    : Math.max(0, PRODUCT.prototype.freeSessionAllowance - (store.sessionDays[sessionDayKey] ?? 0));
   const settings = store.settingsByUser[identityKey] ?? defaultSettings();
   const games = store.gamesOverride.length ? [...GAMES.map(game => store.gamesOverride.find(item => item.slug === game.slug) ?? game), ...store.gamesOverride.filter(item => !GAMES.some(game => game.slug === item.slug))] : GAMES;
+  const profileCard: ProfileCard = store.profileCards[identityKey] ?? {
+    handle: (user?.email.split("@")[0] ?? "player").replace(/[^a-z0-9]/gi, "").slice(0, 16).toLowerCase() || "player",
+    bio: "",
+    avatarDataUrl: null,
+  };
 
   const value: AppContextValue = useMemo(() => {
     return {
@@ -128,6 +143,18 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       selectedPlan: store.selectedPlan,
       avatars: [...auth.avatars],
       identityKey,
+      remainingFreeSessions,
+      consumeFreeSession: () => {
+        if (isMember(entitlement)) return true;
+        const stamp = `${identityKey}:${kolkataDateKey()}`;
+        const used = store.sessionDays[stamp] ?? 0;
+        if (used >= PRODUCT.prototype.freeSessionAllowance) return false;
+        patch((current) => ({
+          ...current,
+          sessionDays: { ...current.sessionDays, [stamp]: used + 1 },
+        }));
+        return true;
+      },
       setIntroDone: () => {
         setIntro(true);
       },
@@ -143,6 +170,21 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         const result = await auth.updateProfile(name, avatarId);
         if (result.ok) toast("Profile saved.", "ok");
         return result;
+      },
+      saveProfileCard: (card) => {
+        const handle = card.handle.trim().toLowerCase().replace(/^@/, "");
+        if (!/^[a-z0-9_]{3,20}$/.test(handle)) {
+          return { ok: false, error: "Handle must be 3–20 letters, numbers, or underscores." };
+        }
+        if (card.bio.length > 140) return { ok: false, error: "Bio is limited to 140 characters." };
+        const taken = Object.entries(store.profileCards).some(([key, value]) => key !== identityKey && value.handle === handle);
+        if (taken) return { ok: false, error: "That handle is already taken on this device." };
+        patch((current) => ({
+          ...current,
+          profileCards: { ...current.profileCards, [identityKey]: { ...card, handle, bio: card.bio.trim() } },
+        }));
+        toast("Profile details saved.", "ok");
+        return { ok: true };
       },
       patchSettings: (next) => {
         patch((current) => ({
@@ -183,12 +225,38 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             achievementId && !list.some((item) => item.id === achievementId)
               ? [...list, { id: achievementId, title: COSMETICS.find((item) => item.id === achievementId)?.name ?? achievementId, earnedAt: new Date().toISOString() }]
               : list;
+          const title = GAMES.find((item) => item.slug === slug)?.title ?? slug;
+          const counts = { ...(current.playCounts[identityKey] ?? {}) };
+          counts[slug] = (counts[slug] ?? 0) + 1;
+          const feed = [
+            {
+              id: crypto.randomUUID(),
+              at: new Date().toISOString(),
+              kind: "play" as const,
+              text: `Played ${title}`,
+              href: `/games/${slug}`,
+            },
+            ...(achievementId && achievements.length > list.length
+              ? [
+                  {
+                    id: crypto.randomUUID(),
+                    at: new Date().toISOString(),
+                    kind: "trophy" as const,
+                    text: `Earned ${COSMETICS.find((item) => item.id === achievementId)?.name ?? "a trophy"}`,
+                    href: "/collection",
+                  },
+                ]
+              : []),
+            ...(current.activity[identityKey] ?? []),
+          ].slice(0, 40);
           return {
             ...current,
             bests: { ...current.bests, [bestKey]: nextBest },
             saves: save ? { ...current.saves, [bestKey]: save } : current.saves,
             ownedCosmetics: { ...current.ownedCosmetics, [identityKey]: [...owned] },
             achievements: { ...current.achievements, [identityKey]: achievements },
+            playCounts: { ...current.playCounts, [identityKey]: counts },
+            activity: { ...current.activity, [identityKey]: feed },
           };
         });
       },
@@ -287,6 +355,19 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
                   ...(order.planId === "tide" ? ["theme-tide", "theme-paper", "badge-tide"] : []),
                 ]),
               ),
+            },
+            activity: {
+              ...current.activity,
+              [order.userId]: [
+                {
+                  id: crypto.randomUUID(),
+                  at: new Date().toISOString(),
+                  kind: "membership" as const,
+                  text: `Joined ${planById(order.planId).name}`,
+                  href: "/billing",
+                },
+                ...(current.activity[order.userId] ?? []),
+              ].slice(0, 40),
             },
           };
         });
@@ -422,6 +503,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       bestFor: (slug) => store.bests[`${identityKey}:${slug}`],
       saveFor: (slug) => store.saves[`${identityKey}:${slug}`],
       owned: store.ownedCosmetics[identityKey] ?? [],
+      profileCard,
       invoices: store.invoices.filter((invoice) => invoice.orderId && store.orders.find((order) => order.id === invoice.orderId && order.userId === user?.id)),
       lastOrderId,
     };
@@ -434,10 +516,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     introDone,
     toasts,
     identityKey,
+    remainingFreeSessions,
     patch,
     toast,
     lastOrderId,
     auth,
+    profileCard,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

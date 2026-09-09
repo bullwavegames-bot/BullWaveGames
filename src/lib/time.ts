@@ -42,6 +42,40 @@ export function formatKolkata(date: Date, options?: Intl.DateTimeFormatOptions):
   }).format(date);
 }
 
+export function relativeTime(iso: string, now = Date.now()): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const delta = Math.max(0, now - then);
+  const minutes = Math.floor(delta / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 14) return `${days} day${days === 1 ? "" : "s"} ago`;
+  return formatKolkata(new Date(iso), { dateStyle: "medium" });
+}
+
+export function consecutiveStreak(isoDates: string[]): number {
+  const keys = [...new Set(isoDates.filter(Boolean).map((iso) => kolkataDateKey(new Date(iso))))].sort().reverse();
+  if (!keys.length) return 0;
+  let cursor = kolkataDateKey();
+  if (!keys.includes(cursor)) {
+    const yesterday = new Date(`${cursor}T12:00:00+05:30`);
+    yesterday.setDate(yesterday.getDate() - 1);
+    cursor = kolkataDateKey(yesterday);
+    if (!keys.includes(cursor)) return 0;
+  }
+  let streak = 0;
+  while (keys.includes(cursor)) {
+    streak += 1;
+    const previous = new Date(`${cursor}T12:00:00+05:30`);
+    previous.setDate(previous.getDate() - 1);
+    cursor = kolkataDateKey(previous);
+  }
+  return streak;
+}
+
 export function resetLabel(date = new Date()): string {
   const next = nextKolkataMidnight(date);
   return `${formatKolkata(next, {
