@@ -267,6 +267,9 @@ export function Solitaire({
         >
           Undo
         </button>
+        <button className="btn btn-secondary" onClick={() => { setState(deal(spider)); setHistory([]); setSelected(null); setMessage("New deal ready."); }}>
+          New deal
+        </button>
         <button
           className="btn btn-secondary"
           onClick={() =>
@@ -318,6 +321,10 @@ export function Solitaire({
   );
 }
 
+function rummyPotential(hand: Card[]) {
+  return hand.reduce((score, card) => score + hand.filter((other) => other !== card && (other.rank === card.rank || (other.suit === card.suit && Math.abs(other.rank - card.rank) <= 2))).length, 0);
+}
+
 export function Rummy({ api, paused }: Props) {
   const [state, setState] = useState(() => {
     const d = deck();
@@ -333,6 +340,7 @@ export function Rummy({ api, paused }: Props) {
   const [message, setMessage] = useState(
     "Draw a card, then click a card in your hand to discard it.",
   );
+  const [difficulty, setDifficulty] = useState<"beginner" | "standard">("standard");
   const draw = (discard: boolean) => {
     if (paused || state.drawn) return;
     const n = {
@@ -380,7 +388,9 @@ export function Rummy({ api, paused }: Props) {
       n.stock = shuffle(n.discard);
       n.discard = [top];
     }
-    const top = n.stock.pop();
+    const discardTop = n.discard.at(-1);
+    const takeDiscard = difficulty === "standard" && discardTop && rummyPotential([...n.bot, discardTop]) > rummyPotential(n.bot);
+    const top = takeDiscard ? n.discard.pop() : n.stock.pop();
     if (top) n.bot.push(top);
     let best = 0;
     let bestValue = -Infinity;
@@ -391,17 +401,7 @@ export function Rummy({ api, paused }: Props) {
         finish(api, 0, false, "Computer melded its hand");
         return;
       }
-      const value = h.reduce(
-        (sum, c) =>
-          sum +
-          h.filter(
-            (d) =>
-              d !== c &&
-              (d.rank === c.rank ||
-                (d.suit === c.suit && Math.abs(d.rank - c.rank) <= 2)),
-          ).length,
-        0,
-      );
+      const value = difficulty === "beginner" ? Math.random() : rummyPotential(h);
       if (value > bestValue) {
         bestValue = value;
         best = i;
@@ -417,6 +417,7 @@ export function Rummy({ api, paused }: Props) {
       paused={paused}
       status={`Ten-card meld rummy · ${state.turns} turns · ${message}`}
     >
+      <label className="game-select">Computer difficulty <select value={difficulty} onChange={(event) => setDifficulty(event.target.value as "beginner" | "standard")} disabled={state.turns > 0}><option value="beginner">Beginner</option><option value="standard">Standard</option></select></label>
       <p>Computer: {state.bot.length} cards</p>
       <div className="card-toolbar">
         <button
@@ -500,6 +501,7 @@ export function ChessGame({ api, paused }: Props) {
   const [, refresh] = useState(0);
   const [selected, setSelected] = useState<Square | null>(null);
   const [bot, setBot] = useState(true);
+  const [difficulty, setDifficulty] = useState<"beginner" | "standard" | "skilled">("standard");
   const [promotion, setPromotion] = useState("q");
   const [message, setMessage] = useState("");
   const end = () => {
@@ -518,9 +520,19 @@ export function ChessGame({ api, paused }: Props) {
     () => {
       if (bot && game.turn() === "b" && !game.isGameOver()) {
         const moves = game.moves({ verbose: true });
-        const captures = moves.filter((m) => m.captured);
-        const choices = captures.length ? captures : moves;
-        game.move(choices[random(choices.length)].san);
+        let choice = moves[random(moves.length)];
+        if (difficulty === "standard") {
+          const captures = moves.filter((move) => move.captured);
+          choice = (captures.length ? captures : moves)[random((captures.length ? captures : moves).length)];
+        }
+        if (difficulty === "skilled") {
+          const values: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 100 };
+          choice = [...moves].sort((a, b) => {
+            const score = (move: typeof a) => (move.captured ? values[move.captured] : 0) + (move.promotion ? values[move.promotion] : 0) + (move.san.includes("#") ? 1000 : move.san.includes("+") ? 2 : 0);
+            return score(b) - score(a);
+          })[0];
+        }
+        game.move(choice.san);
         setSelected(null);
         end();
       }
@@ -570,6 +582,7 @@ export function ChessGame({ api, paused }: Props) {
             <option value="local">Friend on this device</option>
           </select>
         </label>
+        {bot ? <label>Difficulty{" "}<select value={difficulty} disabled={game.history().length > 0} onChange={(event) => setDifficulty(event.target.value as typeof difficulty)}><option value="beginner">Beginner</option><option value="standard">Standard</option><option value="skilled">Skilled</option></select></label> : null}
         <label>
           Promote pawn to{" "}
           <select
@@ -624,6 +637,9 @@ export function ChessGame({ api, paused }: Props) {
         }
       >
         Resign
+      </button>
+      <button className="btn btn-secondary" disabled={!game.history().length} onClick={() => { game.undo(); if (bot) game.undo(); setSelected(null); setMessage("Move undone."); refresh((value) => value + 1); }}>
+        Undo
       </button>
     </GameFrame>
   );

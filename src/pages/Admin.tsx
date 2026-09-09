@@ -285,7 +285,7 @@ function GameEditInner() {
   return (
     <div className="section wrap article">
       <h1 className="display">{existing ? "Edit game" : "Create game"}</h1>
-      <p>A game may require membership normally while becoming free through the active daily rotation.</p>
+      <p>Every published game is free to play. Rotation eligibility controls featured quick picks only.</p>
       <Field label="Title">
         <TextInput value={game.title} onChange={(event) => setGame({ ...game, title: event.target.value })} />
       </Field>
@@ -297,11 +297,7 @@ function GameEditInner() {
       </Field>
       <label className="check">
         <input type="checkbox" checked={game.rotationEligible} onChange={(event) => setGame({ ...game, rotationEligible: event.target.checked })} />
-        Eligible for free rotation (separate from being selected today)
-      </label>
-      <label className="check">
-        <input type="checkbox" checked={game.memberAccess} onChange={(event) => setGame({ ...game, memberAccess: event.target.checked })} />
-        Baseline member access
+        Eligible for featured quick picks
       </label>
       <div className="actions">
         <Button onClick={() => save(false)}>Save draft</Button>

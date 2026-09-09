@@ -33,7 +33,7 @@ Marked in the UI with notices where players would otherwise think they are live:
 
 ## Production must
 
-- Enforce entitlements and session allowances on the server
+- Enforce membership perk entitlements on the server; published games remain free to launch
 - Verify payment webhooks and keep secrets off the client
 - Allowlist return URLs (already mirrored in `src/lib/access.ts`)
 - Keep admin authorization on the server, not only the UI guard

@@ -27,6 +27,28 @@
   cursor: default;
   opacity: 0.55;
 }
+
+.game-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 10px 12px 0;
+  color: #dce7f2;
+  font-size: 0.95rem;
+}
+
+.game-select select {
+  min-height: 42px;
+  border: 1px solid #587083;
+  border-radius: 10px;
+  background: #101e2c;
+  color: #fff;
+  padding: 8px 10px;
+}
+
+.sudoku-grid button.related:not(.given) {
+  background: rgba(67, 199, 232, 0.12);
+}
 .game-controls input,
 .game-controls select {
   background: #152b3b;

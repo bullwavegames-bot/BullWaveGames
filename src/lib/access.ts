@@ -1,6 +1,5 @@
 import { PRODUCT, PLANS, planById } from "../config/product";
 import { gameBySlug } from "../data/games";
-import { isFreeToday } from "./time";
 import type { Entitlement, Game, PlanId, UserProfile } from "../types";
 
 export function isMember(entitlement: Entitlement, now = Date.now()): boolean {
@@ -20,24 +19,18 @@ export function continueCap(entitlement: Entitlement): number {
 export type AccessState =
   | { kind: "play-free"; label: "Play free" }
   | { kind: "play"; label: "Play" }
-  | { kind: "unlock"; label: "Unlock with membership" }
-  | { kind: "allowance"; label: "Allowance used" }
   | { kind: "maintenance"; label: "Unavailable" }
   | { kind: "unsupported"; label: "Not supported here" };
 
 export function accessForGame(
   game: Game,
   entitlement: Entitlement,
-  freeSessionsRemaining: number,
+  _freeSessionsRemaining: number,
 ): AccessState {
   if (game.maintenance || !game.published) return { kind: "maintenance", label: "Unavailable" };
   if (game.unsupportedNote) return { kind: "unsupported", label: "Not supported here" };
   if (isMember(entitlement)) return { kind: "play", label: "Play" };
-  if (isFreeToday(game.slug)) {
-    if (freeSessionsRemaining > 0) return { kind: "play-free", label: "Play free" };
-    return { kind: "allowance", label: "Allowance used" };
-  }
-  return { kind: "unlock", label: "Unlock with membership" };
+  return { kind: "play-free", label: "Play free" };
 }
 
 export function canLaunch(access: AccessState): boolean {

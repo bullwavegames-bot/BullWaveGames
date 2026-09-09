@@ -1,7 +1,7 @@
 # Validation checklist
 
-- [ ] Guest opens today’s free game and plays (no age gate)
-- [ ] Guest exhausts the free allowance and can dismiss the membership modal
+- [ ] Guest opens every published game and plays without a membership gate
+- [ ] Repeated guest sessions never show an allowance or membership-unlock modal
 - [ ] Wave, Surge, and Tide each preserve plan through register → welcome → checkout
 - [ ] Simulated payment success, decline, cancel, pending, and uncertain paths
 - [ ] Repeating a succeeded order does not duplicate membership

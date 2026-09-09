@@ -18,8 +18,13 @@ export function Tiles2048({ api, paused }: Props) {
       next[empty[random(empty.length)]] = Math.random() < 0.9 ? 2 : 4;
     return next;
   };
-  const [board, setBoard] = useState(() => spawn(spawn(Array(16).fill(0))));
-  const [score, setScore] = useState(0);
+  const saved = useRef<{ board: number[]; score: number } | null>(null);
+  if (saved.current === null) {
+    try { saved.current = JSON.parse(localStorage.getItem("bullwave-2048-v1") || "null"); } catch { saved.current = null; }
+  }
+  const [board, setBoard] = useState(() => saved.current?.board?.length === 16 ? saved.current.board : spawn(spawn(Array(16).fill(0))));
+  const [score, setScore] = useState(() => saved.current?.score ?? 0);
+  const [history, setHistory] = useState<Array<{ board: number[]; score: number }>>([]);
   const touch = useRef<[number, number] | null>(null);
   const move = (x: number, y: number) => {
     if (paused) return;
@@ -27,8 +32,10 @@ export function Tiles2048({ api, paused }: Props) {
     if (!r.changed) return;
     const next = spawn(r.board),
       points = score + r.score;
+    setHistory((items) => [...items.slice(-19), { board, score }]);
     setBoard(next);
     setScore(points);
+    localStorage.setItem("bullwave-2048-v1", JSON.stringify({ board: next, score: points }));
     if (next.includes(2048)) finish(api, points, true, "2048 reached");
     else if ([0, 1, 2, 3].every((d) => !slide2048(next, d).changed))
       finish(api, points, false, "No moves left");
@@ -80,6 +87,7 @@ export function Tiles2048({ api, paused }: Props) {
         ))}
       </div>
       <DirectionPad move={move} />
+      <div className="actions"><button className="btn btn-secondary" disabled={!history.length} onClick={() => { const previous = history.at(-1); if (!previous) return; setBoard(previous.board); setScore(previous.score); setHistory(history.slice(0, -1)); localStorage.setItem("bullwave-2048-v1", JSON.stringify(previous)); }}>Undo</button><button className="btn btn-secondary" onClick={() => { const next = spawn(spawn(Array(16).fill(0))); setBoard(next); setScore(0); setHistory([]); localStorage.setItem("bullwave-2048-v1", JSON.stringify({ board: next, score: 0 })); }}>New game</button></div>
     </GameFrame>
   );
 }
@@ -179,6 +187,7 @@ export function Sudoku({ api, paused }: Props) {
   const [pencil, setPencil] = useState(false);
   const [check, setCheck] = useState(false);
   const [moves, setMoves] = useState(0);
+  const [mistakes, setMistakes] = useState(0);
   const enter = (n: number) => {
     if (paused || initial[cell]) return;
     if (pencil && n) {
@@ -194,6 +203,7 @@ export function Sudoku({ api, paused }: Props) {
     b[cell] = n;
     setBoard(b);
     setMoves(moves + 1);
+    if (n && n !== solution[cell]) setMistakes((value) => value + 1);
     if (b.every((x, i) => x === solution[i]))
       finish(api, Math.max(100, 1000 - moves), true, "Sudoku solved");
   };
@@ -201,6 +211,11 @@ export function Sudoku({ api, paused }: Props) {
     const fn = (e: KeyboardEvent) => {
       if (/^[1-9]$/.test(e.key)) enter(+e.key);
       if (e.key === "Backspace" || e.key === "Delete") enter(0);
+      const delta: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -9, ArrowDown: 9 };
+      if (delta[e.key]) {
+        e.preventDefault();
+        setCell((value) => Math.max(0, Math.min(80, value + delta[e.key])));
+      }
     };
     window.addEventListener("keydown", fn);
     return () => window.removeEventListener("keydown", fn);
@@ -209,7 +224,7 @@ export function Sudoku({ api, paused }: Props) {
     <GameFrame
       title="Sudoku"
       paused={paused}
-      status="Every row, column, and box needs 1–9."
+      status={`Every row, column, and box needs 1–9 · ${mistakes} mistakes`}
     >
       <div className="sudoku-grid">
         {board.map((v, i) => (
@@ -217,7 +232,7 @@ export function Sudoku({ api, paused }: Props) {
             key={i}
             aria-label={`Row ${Math.floor(i / 9) + 1} column ${(i % 9) + 1}: ${v || "empty"}`}
             aria-pressed={cell === i}
-            className={`${initial[i] ? "given" : ""} ${check && v && v !== solution[i] ? "incorrect" : ""}`}
+            className={`${initial[i] ? "given" : ""} ${check && v && v !== solution[i] ? "incorrect" : ""} ${cell !== i && (Math.floor(cell / 9) === Math.floor(i / 9) || cell % 9 === i % 9 || (Math.floor(cell / 27) === Math.floor(i / 27) && Math.floor((cell % 9) / 3) === Math.floor((i % 9) / 3))) ? "related" : ""}`}
             style={{
               borderRightWidth: i % 3 === 2 ? 3 : 1,
               borderBottomWidth: Math.floor(i / 9) % 3 === 2 ? 3 : 1,
@@ -252,6 +267,9 @@ export function Sudoku({ api, paused }: Props) {
         onClick={() => setCheck(!check)}
       >
         Check
+      </button>
+      <button className="btn btn-secondary" onClick={() => { setBoard(initial); setNotes({}); setMoves(0); setMistakes(0); setCheck(false); setCell(initial.findIndex((value) => !value)); }}>
+        Restart puzzle
       </button>
     </GameFrame>
   );
@@ -300,7 +318,9 @@ const CLUES = [
   },
 ];
 export function Crossword({ api, paused }: Props) {
-  const [letters, setLetters] = useState<Record<string, string>>({});
+  const [letters, setLetters] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem("bullwave-crossword-v1") || "{}"); } catch { return {}; }
+  });
   const [active, setActive] = useState(0);
   const [message, setMessage] = useState("Select a clue and fill its answer.");
   const cells: Record<string, string> = {};
@@ -320,8 +340,10 @@ export function Crossword({ api, paused }: Props) {
       (_, i) =>
         `${clue.row + (clue.down ? i : 0)},${clue.col + (clue.down ? 0 : i)}`,
     );
+  useEffect(() => { localStorage.setItem("bullwave-crossword-v1", JSON.stringify(letters)); }, [letters]);
+  const filled = Object.keys(cells).filter((key) => letters[key]).length;
   return (
-    <GameFrame title="Crossword" paused={paused} status={message}>
+    <GameFrame title="Crossword" paused={paused} status={`${message} · ${filled}/${Object.keys(cells).length} letters`}>
       <div className="crossword-layout">
         <div className="crossword-grid">
           {Array.from({ length: 42 }, (_, i) => {
@@ -377,6 +399,7 @@ export function Crossword({ api, paused }: Props) {
       >
         Check puzzle
       </button>
+      <button className="btn btn-secondary" onClick={() => { setLetters({}); setMessage("Puzzle cleared."); localStorage.removeItem("bullwave-crossword-v1"); }}>Clear puzzle</button>
     </GameFrame>
   );
 }

@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import { useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import { formatInr, PLANS } from "../config/product";
-import { todaysRotation } from "../lib/time";
 import { useApp } from "../state/AppState";
 import { GameCard } from "../components/GameCard";
 import { COLLECTION } from "../data/collection";
@@ -20,12 +19,12 @@ const categories = [
   { name: "Multiplayer Party", subtitle: "Better with friends", symbol: "✦", color: "#f16f78", games: ["Draw & Guess", "Multiplayer Ludo Rooms", "Trivia Battle (1v1 or Teams)"] },
 ];
 const features = [
-  ["Access to core games", "Yes", "Yes", "Yes", "Yes"],
+  ["All published games", "Yes", "Yes", "Yes", "Yes"],
   ["Ads", "Yes", "Reduced", "Ad-free", "Ad-free"],
-  ["Exclusive games", "—", "Select", "Most", "All"],
+  ["Extra continues", "—", "Standard", "Extra", "Highest"],
   ["Early access to new releases", "—", "—", "Yes", "Yes"],
-  ["Multiplayer party rooms", "Limited", "Yes", "Yes", "Yes"],
-  ["Priority live trivia entry", "—", "—", "Yes", "Yes"],
+  ["Weekly cosmetics", "—", "Basic", "Yes", "Yes"],
+  ["Exclusive visual themes", "—", "—", "—", "Yes"],
   ["Custom profile/avatar perks", "—", "Basic", "Enhanced", "Full"],
 ];
 
@@ -39,7 +38,6 @@ export function LandingPage() {
   const heroRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const artY = useTransform(scrollYProgress, [0, 1], [0, reduce ? 0 : 70]);
-  const rotation = todaysRotation();
   const selected = categories[category];
   const collectionCards = games.filter((game) => game.published && game.genre === selected.name && COLLECTION.some((item) => item.slug === game.slug));
   const originalCards = games.filter((game) => game.published && !COLLECTION.some((item) => item.slug === game.slug));
@@ -66,7 +64,7 @@ export function LandingPage() {
             Original puzzle, reflex, rhythm, calm, and party games — play instantly in your browser, no downloads, no waiting.
           </p>
           <motion.div className="actions" initial={reduce ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: reduce ? 0 : 0.24 }}>
-            <ButtonLink to="/games?availability=free-today" variant="primary">
+            <ButtonLink to="/games" variant="primary">
               Start Playing Free ↗
             </ButtonLink>
             <a className="btn btn-secondary" href="#plans">
@@ -99,7 +97,7 @@ export function LandingPage() {
             </div>
             <span className="chip">36 playable games</span>
           </Reveal>
-          <p className="meta">Explore solo challenges and shared room games. Today’s free rotation is marked on each card; membership unlocks the full catalog. Room games need at least two connected players.</p>
+          <p className="meta">Explore solo challenges and shared room games. Every published game is free to play; membership adds optional profile, cosmetic, and convenience perks. Room games need at least two connected players.</p>
           <div className="category-tabs" role="tablist" aria-label="Game categories">
             {categories.map((item, index) => (
               <motion.button
@@ -146,7 +144,7 @@ export function LandingPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.35, delay: reduce ? 0 : Math.min(index, 8) * 0.04 }}
                   >
-                    <GameCard game={game} availability={rotation.some((item) => item.slug === game.slug) ? "Free today" : "Members"} />
+                    <GameCard game={game} />
                   </motion.div>
                 ))}
               </motion.div>
@@ -170,7 +168,7 @@ export function LandingPage() {
                 viewport={{ once: true, amount: 0.2 }}
                 transition={{ duration: 0.4, delay: reduce ? 0 : Math.min(index, 6) * 0.05 }}
               >
-                <GameCard game={game} availability={rotation.some((item) => item.slug === game.slug) ? "Free today" : "Members"} />
+                <GameCard game={game} />
               </motion.div>
             ))}
           </div>
@@ -203,8 +201,8 @@ export function LandingPage() {
                   <th scope="col">
                     <h3>Free</h3>
                     <div className="price">₹0</div>
-                    <p className="meta">Start exploring</p>
-                    <ButtonLink to="/games?availability=free-today">Play Free</ButtonLink>
+                    <p className="meta">All published games</p>
+                    <ButtonLink to="/games">Play Free</ButtonLink>
                   </th>
                   {PLANS.map((plan) => (
                     <th scope="col" key={plan.id} className={plan.id === "surge" ? "highlight-plan" : ""}>
@@ -279,7 +277,7 @@ export function LandingPage() {
             <article>
               <span className="step-number">01</span>
               <h3>Sign up in seconds</h3>
-              <p>Create your profile to save progress. Just browsing? Try today’s free games as a guest.</p>
+              <p>Create your profile to save progress. Just browsing? Play any published game as a guest.</p>
               <Link to="/register">Create an account →</Link>
             </article>
             <article>
@@ -292,7 +290,7 @@ export function LandingPage() {
               <span className="step-number">03</span>
               <h3>Play instantly</h3>
               <p>Right in your browser. No downloads or waiting — just a little time for yourself.</p>
-              <Link to="/games?availability=free-today">Start playing free →</Link>
+              <Link to="/games">Start playing free →</Link>
             </article>
           </div>
         </Reveal>
@@ -300,7 +298,7 @@ export function LandingPage() {
       <section className="wrap final-play">
         <p className="kicker">Your next favorite break is here</p>
         <h2 className="display">A little chill. A little challenge.</h2>
-        <ButtonLink to="/games?availability=free-today" variant="primary">
+        <ButtonLink to="/games" variant="primary">
           Start Playing Free ↗
         </ButtonLink>
       </section>

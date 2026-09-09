@@ -13,7 +13,7 @@ export const PRODUCT = {
   currency: "INR",
   currencySymbol: "₹",
   audience: "India-first",
-  positioning: "Play original browser games. Membership unlocks the studio.",
+  positioning: "Play every published browser game free. Membership adds optional studio perks.",
   timezone: "Asia/Kolkata",
   ageMinimum: 0,
   soundMutedByDefault: true,
@@ -55,7 +55,7 @@ export const PLANS: Plan[] = [
     id: "wave",
     name: "Wave",
     monthlyPriceInr: 399,
-    benefits: ["Full catalog", "No ads", "Standard frames"],
+    benefits: ["No ads", "Standard frames", "Extra continue"],
   },
   {
     id: "surge",
@@ -92,7 +92,7 @@ export function formatInr(amount: number): string {
 }
 
 export const COMPARISON_ROWS: { feature: string; wave: string; surge: string; tide: string }[] = [
-  { feature: "Full catalog", wave: "Yes", surge: "Yes", tide: "Yes" },
+  { feature: "All published games", wave: "Free for everyone", surge: "Free for everyone", tide: "Free for everyone" },
   { feature: "Ad-free access", wave: "Yes", surge: "Yes", tide: "Yes" },
   { feature: "Standard frames", wave: "Yes", surge: "Yes", tide: "Yes" },
   {

@@ -4,15 +4,7 @@ import type { Game } from "../types";
 import { Badge } from "./ui";
 import { GamePreview } from "./GamePreview";
 
-export function GameCard({
-  game,
-  availability,
-  locked,
-}: {
-  game: Game;
-  availability: "Free today" | "Members";
-  locked?: boolean;
-}) {
+export function GameCard({ game }: { game: Game }) {
   const reduce = useReducedMotion();
   return (
     <Link className={`card game-card ${reduce ? "no-flip" : ""}`} to={`/games/${game.slug}`}>
@@ -30,17 +22,12 @@ export function GameCard({
             <Badge tone="new">New</Badge>
           </span>
         ) : null}
-        {locked ? (
-          <span className="lock" aria-label="Members">
-            ⌁
-          </span>
-        ) : null}
       </div>
       <div className="body">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
           <strong style={{ color: "var(--white)" }}>{game.title}</strong>
           <span style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            <Badge tone={availability === "Free today" ? "free" : "default"}>{availability}</Badge>
+            <Badge tone="free">Free to play</Badge>
           </span>
         </div>
         <div className="meta">

@@ -152,7 +152,7 @@ export const GAMES: Game[] = [
     coverAlt: "Two contrasting folded-paper forms meeting across a central seam.",
     previewAlt: "Muted preview of two folded paper forms in a duel.",
     controls: {
-      desktop: ["Player 1: A / D or 1 / 2", "Player 2: Left / Right arrows", "Esc to pause"],
+      desktop: ["Player 1: Q / W / E / R", "Player 2: arrow keys", "Esc to pause"],
       touch: ["Alternating turns — tap the matching fold when it is your turn"],
     },
     memberAccess: true,

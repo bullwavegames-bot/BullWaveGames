@@ -6,16 +6,15 @@ Source of truth for interface copy. Prefer these strings; prices always come fro
 
 - Landing: Small sessions. Beautiful worlds.
 - Catalog: Find your next five-minute escape.
-- Membership: Unlock the studio.
+- Membership: Add more personality to your play.
 - Challenges: A fresh challenge. A new personal best.
 - Collection: Make the arcade yours.
-- Empty history: Your arcade fills as you play. Start with today’s three.
+- Empty history: Your arcade fills as you play. Start with a quick pick.
 - Load error: We couldn’t load your games. Try again.
 - Save error: Your score hasn’t synced yet. Try again.
 - 404: This page wandered out of the arcade.
 - 500: Something interrupted the studio.
 - Maintenance: The studio is taking a short break.
-- Allowance: Keep exploring the studio.
 - Pending: We’re confirming your payment.
 - Failed: Your membership payment wasn’t completed.
 
@@ -23,9 +22,8 @@ Source of truth for interface copy. Prefer these strings; prices always come fro
 
 - Play
 - Play free
-- Play today’s free games
+- Play any game free
 - Continue playing
-- Unlock studio / Unlock with membership
 - See membership / See memberships
 - Pay ₹399 / Pay ₹799 / Pay ₹1499
 - View billing

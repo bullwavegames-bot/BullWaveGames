@@ -122,7 +122,7 @@ export function PaymentReturnPage() {
   if (order.status === "succeeded" && order.activated) {
     return (
       <div className="section wrap article">
-        <h1 className="display">{planById(order.planId).name} is active. The studio is unlocked.</h1>
+          <h1 className="display">{planById(order.planId).name} is active. Your member perks are ready.</h1>
         <p>Active plan: {planById(order.planId).name}</p>
         <p>Confirmed amount: {formatInr(order.amountInr)}</p>
         <p>Access follows the verified entitlement period. This screen is based on verified order status, not the URL alone.</p>

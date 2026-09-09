@@ -1,6 +1,6 @@
 # Playable collection
 
-The catalog contains the six original games plus thirty new browser games. The landing-page category tabs now link to playable game details. The existing daily rotation and membership access remain in effect.
+The catalog contains the six original games plus thirty new browser games. The landing-page category tabs link to playable game details. Every published game is free to launch; membership remains available for optional perks.
 
 ## Running
 

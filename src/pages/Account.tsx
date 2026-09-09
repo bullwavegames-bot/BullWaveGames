@@ -70,7 +70,7 @@ export function BillingPage() {
         <Dialog title="End renewal?" onClose={() => setCancelOpen(false)}>
           <p>Plan {entitlement.planId ? planById(entitlement.planId).name : ""}.</p>
           <p>Access remains until {entitlement.accessEndDate ? formatKolkata(new Date(entitlement.accessEndDate), { dateStyle: "medium" }) : "the end date"}.</p>
-          <p>After that date, member catalog access ends. Cancellation has no extra fee.</p>
+          <p>After that date, member perks end. Every published game remains free to play. Cancellation has no extra fee.</p>
           <div className="actions">
             <Button
               variant="primary"

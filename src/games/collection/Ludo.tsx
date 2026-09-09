@@ -7,7 +7,7 @@ import {
   rollLudo,
   type LudoState,
 } from "../../../shared/ludo.mjs";
-import { finish, GameFrame, random, type Props } from "./common";
+import { finish, GameFrame, random, useTick, type Props } from "./common";
 const COLORS = ["#61d6b0", "#f16f78", "#43c7e8", "#d5aa50"];
 export function LudoBoard({
   state,
@@ -151,21 +151,40 @@ export function LudoBoard({
 }
 export function LocalLudo({ api, paused }: Props) {
   const [state, setState] = useState(() => createLudo(2));
+  const [opponent, setOpponent] = useState<"computer" | "local">("computer");
+  const [difficulty, setDifficulty] = useState<"beginner" | "strategic">("strategic");
+  const applyMove = (current: LudoState, token: number) => {
+    const next = moveLudo(current, token);
+    setState(next);
+    if (next.winner !== null) finish(api, next.winner === 0 ? 1000 : 0, next.winner === 0, `Player ${next.winner + 1} wins`);
+  };
+  useTick(() => {
+    if (opponent !== "computer" || state.turn !== 1 || state.winner !== null) return;
+    if (state.die === 0) { setState(rollLudo(state, random(6) + 1)); return; }
+    const legal = legalTokens(state);
+    if (!legal.length) return;
+    const token = difficulty === "beginner" ? legal[random(legal.length)] : [...legal].sort((a, b) => {
+      const score = (index: number) => {
+        const next = moveLudo(state, index);
+        const before = state.tokens[1][index], after = next.tokens[1][index];
+        return (after === HOME ? 1000 : after) - before + (next.message.includes("captured") ? 100 : 0);
+      };
+      return score(b) - score(a);
+    })[0];
+    applyMove(state, token);
+  }, 650, paused);
   return (
     <GameFrame title="Ludo" paused={paused} status={state.message}>
       <p className="meta">
-        Two players on this device · Roll 6 to enter · Safe stars · Exact finish
+        Roll 6 to enter · Safe stars · Exact finish
       </p>
+      <div className="game-input-row"><label>Opponent <select value={opponent} onChange={(event) => { setOpponent(event.target.value as typeof opponent); setState(createLudo(2)); }}><option value="computer">Computer</option><option value="local">Friend on this device</option></select></label>{opponent === "computer" ? <label>Difficulty <select value={difficulty} onChange={(event) => setDifficulty(event.target.value as typeof difficulty)}><option value="beginner">Beginner</option><option value="strategic">Strategic</option></select></label> : null}<button className="btn btn-secondary" onClick={() => setState(createLudo(2))}>New game</button></div>
       <LudoBoard
         state={state}
+        player={opponent === "computer" ? 0 : undefined}
         disabled={paused}
         roll={() => setState(rollLudo(state, random(6) + 1))}
-        move={(i) => {
-          const n = moveLudo(state, i);
-          setState(n);
-          if (n.winner !== null)
-            finish(api, 1000, true, `Player ${n.winner + 1} wins`);
-        }}
+        move={(i) => applyMove(state, i)}
       />
     </GameFrame>
   );

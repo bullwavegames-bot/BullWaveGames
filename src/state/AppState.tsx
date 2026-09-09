@@ -12,7 +12,6 @@ import { COSMETICS } from "../data/content";
 import { GAMES } from "../data/games";
 import { emptyEntitlement, loadStore, saveStore, type PersistedStore } from "../lib/storage";
 import { isMember } from "../lib/access";
-import { kolkataDateKey } from "../lib/time";
 import { useAuth } from "./AuthContext";
 import type {
   Entitlement,
@@ -49,7 +48,6 @@ interface AppContextValue {
   guestKey: string;
   selectedPlan: PlanId | null;
   avatars: string[];
-  freeRemaining: number;
   identityKey: string;
   setIntroDone: () => void;
   setAge: (age: PersistedStore["age"]) => void;
@@ -60,7 +58,6 @@ interface AppContextValue {
   completeOnboarding: (name: string, avatarId: string) => Promise<{ ok: true } | { ok: false; error: string }>;
   updateProfile: (name: string, avatarId: string) => Promise<{ ok: true } | { ok: false; error: string }>;
   patchSettings: (patch: Partial<Settings>) => void;
-  consumeSession: () => boolean;
   recordResult: (result: { slug: string; score: number; stars: number; metric?: string; save?: GameSave }) => void;
   equip: (id: string) => { ok: true } | { ok: false; error: string };
   createOrder: (planId: PlanId) => { ok: true; order: PaymentOrder } | { ok: false; error: string };
@@ -116,11 +113,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const entitlement = store.entitlementByUser[identityKey] ?? emptyEntitlement();
   const settings = store.settingsByUser[identityKey] ?? defaultSettings();
   const games = store.gamesOverride.length ? [...GAMES.map(game => store.gamesOverride.find(item => item.slug === game.slug) ?? game), ...store.gamesOverride.filter(item => !GAMES.some(game => game.slug === item.slug))] : GAMES;
-  const dateKey = kolkataDateKey();
-  const used = store.sessionDays[`${identityKey}:${dateKey}`] ?? 0;
-  const freeRemaining = isMember(entitlement)
-    ? 99
-    : Math.max(0, PRODUCT.prototype.freeSessionAllowance - used);
 
   const value: AppContextValue = useMemo(() => {
     return {
@@ -135,7 +127,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       guestKey: store.guestKey,
       selectedPlan: store.selectedPlan,
       avatars: [...auth.avatars],
-      freeRemaining: isMember(entitlement) ? PRODUCT.prototype.freeSessionAllowance : freeRemaining,
       identityKey,
       setIntroDone: () => {
         sessionStorage.setItem("bw.intro", "1");
@@ -162,18 +153,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             [identityKey]: { ...settings, ...next },
           },
         }));
-      },
-      consumeSession: () => {
-        if (isMember(entitlement)) return true;
-        if (freeRemaining <= 0) return false;
-        patch((current) => ({
-          ...current,
-          sessionDays: {
-            ...current.sessionDays,
-            [`${identityKey}:${dateKey}`]: used + 1,
-          },
-        }));
-        return true;
       },
       recordResult: ({ slug, score, stars, metric, save }) => {
         const bestKey = `${identityKey}:${slug}`;
@@ -456,9 +435,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     introDone,
     toasts,
     identityKey,
-    freeRemaining,
-    dateKey,
-    used,
     patch,
     toast,
     lastOrderId,

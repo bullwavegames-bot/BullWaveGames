@@ -12,11 +12,11 @@ const FAQS = [
   },
   {
     q: "What can I play without paying?",
-    a: "The daily free three, subject to a session allowance that resets at midnight Asia/Kolkata. Account creation saves progress; it is not required for the guest trial.",
+    a: "Every published game is free to play with no membership unlock or daily session limit. Account creation is only needed to save progress and use account features.",
   },
   {
     q: "When does membership start?",
-    a: "Access activates only after verified payment status. This prototype does not take live payment.",
+    a: "Member perks activate only after verified payment status. This prototype does not take live payment.",
   },
   {
     q: "Does membership renew automatically?",
@@ -54,7 +54,7 @@ export function MembershipPage() {
   return (
     <div className="section">
       <div className="wrap">
-        <PageIntro eyebrow="Choose your wave" title="Unlock the studio." description="More games, personal touches, and new reasons to return.">
+        <PageIntro eyebrow="Choose your wave" title="Make the arcade yours." description="Every game stays free. Membership adds personal touches, cosmetics, and convenience perks.">
           <div className="intro-perks"><span>✦ Original games</span><span>◇ Personal touches</span><span>↗ Play in your browser</span></div>
         </PageIntro>
         {member && entitlement.planId ? (

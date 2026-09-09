@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { accessForGame, canLaunch, continueCap } from "../lib/access";
+import { continueCap } from "../lib/access";
 import { gameBySlug } from "../data/games";
-import { resetLabel } from "../lib/time";
 import { useApp } from "../state/AppState";
 import { Button, ButtonLink, Dialog } from "../components/ui";
 import { KiteLine } from "../games/KiteLine";
@@ -23,11 +22,10 @@ export function GameSessionPage() {
 function GameSession() {
   const { slug = "" } = useParams();
   const navigate = useNavigate();
-  const { games, entitlement, freeRemaining, consumeSession, recordResult, settings } = useApp();
+  const { games, entitlement, recordResult, settings } = useApp();
   const game = games.find((item) => item.slug === slug) ?? gameBySlug(slug);
-  const access = game ? accessForGame(game, entitlement, freeRemaining) : null;
   const liveRoom = ["draw-guess", "multiplayer-ludo", "live-trivia", "trivia-battle"].includes(slug);
-  const [phase, setPhase] = useState<"idle" | "playing" | "paused" | "results" | "limit">("idle");
+  const [phase, setPhase] = useState<"idle" | "playing" | "paused" | "results">("idle");
   const [muted, setMuted] = useState(!settings.gameSound);
   const [fullscreen, setFullscreen] = useState(false);
   const [continues, setContinues] = useState(continueCap(entitlement));
@@ -36,10 +34,6 @@ function GameSession() {
   const [loadError, setLoadError] = useState(false);
   const started = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!started.current && game && access && !canLaunch(access) && access.kind === "allowance") setPhase("limit");
-  }, [game, access]);
 
   if (!game) {
     return (
@@ -51,18 +45,7 @@ function GameSession() {
   }
 
   const start = () => {
-    if (access && !canLaunch(access)) {
-      setPhase("limit");
-      return;
-    }
-    if (!started.current) {
-      const ok = consumeSession();
-      if (!ok) {
-        setPhase("limit");
-        return;
-      }
-      started.current = true;
-    }
+    if (!started.current) started.current = true;
     setLoadError(false);
     setPhase("playing");
   };
@@ -186,18 +169,6 @@ function GameSession() {
               </div>
             </div>
           </div>
-        ) : null}
-        {phase === "limit" ? (
-          <Dialog title="Keep exploring the studio." onClose={() => navigate("/play")}>
-            <p>The free allowance has been used. Free access resets {resetLabel()}.</p>
-            <p>Membership starts at ₹399 per month.</p>
-            <div className="actions">
-              <ButtonLink to="/membership" variant="primary">
-                See memberships
-              </ButtonLink>
-              <ButtonLink to="/play">Back to arcade</ButtonLink>
-            </div>
-          </Dialog>
         ) : null}
       </div>
       {confirm ? (
