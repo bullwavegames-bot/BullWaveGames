@@ -23,3 +23,14 @@ await build({
   jsx: "automatic",
 });
 await import("../.docx-work/game-tests/controls.mjs");
+await build({
+  entryPoints: ["tests/originals.test.tsx"],
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  packages: "external",
+  outfile: ".docx-work/game-tests/originals.mjs",
+  loader: { ".css": "empty" },
+  jsx: "automatic",
+});
+await import("../.docx-work/game-tests/originals.mjs");

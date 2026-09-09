@@ -433,6 +433,7 @@ type Disc = Point & {
 };
 export function Carrom({ api, paused }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  const [difficulty, setDifficulty] = useState<"practice" | "standard" | "expert">("standard");
   const g = useRef({
     discs: [
       { x: 240, y: 390, vx: 0, vy: 0, r: 13 },
@@ -473,7 +474,7 @@ export function Carrom({ api, paused }: Props) {
           }
           for (const x of [28, 452])
             for (const y of [28, 452])
-              if (Math.hypot(d.x - x, d.y - y) < 20) {
+              if (Math.hypot(d.x - x, d.y - y) < (difficulty === "practice" ? 27 : difficulty === "expert" ? 17 : 20)) {
                 d.gone = true;
                 d.vx = d.vy = 0;
               }
@@ -585,6 +586,7 @@ export function Carrom({ api, paused }: Props) {
       <p className="meta">
         Solo pocket-all variant · Queen counts as a coin; no cover rule.
       </p>
+      <label className="game-select">Difficulty <select value={difficulty} disabled={g.current.shots > 0} onChange={(event) => setDifficulty(event.target.value as typeof difficulty)}><option value="practice">Practice · larger pockets</option><option value="standard">Standard</option><option value="expert">Expert · smaller pockets</option></select></label>
       <canvas
         ref={canvas}
         width="480"
@@ -614,8 +616,9 @@ export function Carrom({ api, paused }: Props) {
             dy = 390 - p.y,
             d = Math.hypot(dx, dy);
           if (d > 5) {
-            s.discs[0].vx = (dx / d) * Math.min(22, d * 0.14);
-            s.discs[0].vy = (dy / d) * Math.min(22, d * 0.14);
+            const maxPower = difficulty === "practice" ? 18 : difficulty === "expert" ? 24 : 22;
+            s.discs[0].vx = (dx / d) * Math.min(maxPower, d * 0.14);
+            s.discs[0].vy = (dy / d) * Math.min(maxPower, d * 0.14);
             s.shots++;
           }
           s.aim = null;
