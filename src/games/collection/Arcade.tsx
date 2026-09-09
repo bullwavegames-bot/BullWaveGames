@@ -36,6 +36,30 @@ function bg(ctx: CanvasRenderingContext2D, w = W, h = H) {
     ctx.stroke();
   }
 }
+function blobBg(ctx: CanvasRenderingContext2D) {
+  const gradient = typeof ctx.createRadialGradient === "function"
+    ? ctx.createRadialGradient(W * .5, H * .4, 30, W * .5, H * .5, W * .75)
+    : null;
+  if (gradient) {
+    gradient.addColorStop(0, "#15364a");
+    gradient.addColorStop(1, "#06131f");
+    ctx.fillStyle = gradient;
+  } else ctx.fillStyle = "#0c1926";
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "rgba(67, 199, 232, .1)";
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 32) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 32) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  const glow = typeof ctx.createRadialGradient === "function"
+    ? ctx.createRadialGradient(W * .5, H * .5, 10, W * .5, H * .5, 300)
+    : null;
+  if (glow) {
+    glow.addColorStop(0, "rgba(97, 214, 176, .08)");
+    glow.addColorStop(1, "transparent");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
 function circle(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -125,21 +149,33 @@ export function Snake({ api, paused }: Props) {
       paused={paused}
       status={`Score ${score} · Length ${body.length}`}
     >
-      <div className="snake-grid">
-        {Array.from({ length: 400 }, (_, i) => (
-          <div
-            key={i}
-            className={
-              body[0] === i
-                ? "snake-head"
-                : body.includes(i)
-                  ? "snake-body"
-                  : food === i
-                    ? "snake-food"
-                    : ""
-            }
-          />
-        ))}
+      <div className="snake-game">
+        <div className="snake-heading">
+          <div><span className="snake-eyebrow">Neon survival arena</span><h2>Grow. Turn. Survive.</h2></div>
+          <div className="snake-score"><strong>{score}</strong><span>score</span></div>
+        </div>
+        <div className="snake-stats"><span><i className="snake-stat-dot mint" />Length <b>{body.length}</b></span><span><i className="snake-stat-dot coral" />Food <b>+10</b></span><span><i className="snake-stat-dot cyan" />Best run <b>400</b></span></div>
+        <div className="snake-arena-wrap">
+          <div className="snake-arena-label"><span>LIVE ARENA</span><small>WASD / arrows</small></div>
+          <div className="snake-grid" role="grid" aria-label="Snake arena">
+            {Array.from({ length: 400 }, (_, i) => (
+              <div
+                key={i}
+                role="gridcell"
+                className={
+                  body[0] === i
+                    ? "snake-head"
+                    : body.includes(i)
+                      ? "snake-body"
+                      : food === i
+                        ? "snake-food"
+                        : ""
+                }
+              />
+            ))}
+          </div>
+          <div className="snake-arena-footer"><span>Collect the glowing fruit</span><span>Don’t hit the walls or yourself</span></div>
+        </div>
       </div>
       <DirectionPad move={move} />
     </GameFrame>
@@ -171,13 +207,17 @@ export function AimTrainer({ api, paused }: Props) {
       paused={paused}
       status={`${time}s · Hits ${hits} · Misses ${misses}`}
     >
-      <div
+      <div className="aim-game">
+        <div className="aim-heading"><div><span className="aim-eyebrow">Precision range</span><h2>Lock on. Tap fast.</h2></div><div className="aim-score"><strong>{hits}</strong><span>hits</span></div></div>
+        <div className="aim-stats"><span><i className="aim-dot cyan" />Time <b>{time}s</b></span><span><i className="aim-dot mint" />Accuracy <b>{Math.round((hits / Math.max(1, hits + misses)) * 100)}%</b></span><span><i className="aim-dot coral" />Misses <b>{misses}</b></span></div>
+        <div
         className="aim-arena"
         onPointerDown={() => {
           if (!paused) setMisses(misses + 1);
         }}
-      >
-        <button
+        >
+          <div className="aim-reticle-lines" aria-hidden="true" />
+          <button
           disabled={paused}
           aria-label="Hit target"
           className="aim-target"
@@ -187,12 +227,25 @@ export function AimTrainer({ api, paused }: Props) {
             setHits(hits + 1);
             setTarget({ x: 10 + random(80), y: 12 + random(76) });
           }}
-        >
-          ◎
-        </button>
+          >
+            <span className="sr-only">◎</span>
+            <span className="aim-target-ring ring-one" /><span className="aim-target-ring ring-two" /><span className="aim-target-core" />
+          </button>
+        </div>
+        <p className="aim-tip">Hit the target before it relocates · misses reduce your accuracy</p>
       </div>
     </GameFrame>
   );
+}
+
+function raceCar(c: CanvasRenderingContext2D, x: number, y: number, color: string, scale = 1) {
+  const w = 34 * scale, h = 58 * scale;
+  c.fillStyle = "rgba(20,28,24,.35)"; c.beginPath(); c.ellipse(x + 5 * scale, y + h * .48, w * .7, h * .18, 0, 0, Math.PI * 2); c.fill();
+  c.fillStyle = "#172129"; c.fillRect(x - w * .66, y - h * .22, 7 * scale, 17 * scale); c.fillRect(x + w * .46, y - h * .22, 7 * scale, 17 * scale);
+  c.fillStyle = color; c.beginPath(); c.moveTo(x - w * .56, y + h * .5); c.lineTo(x - w * .7, y - h * .14); c.lineTo(x - w * .36, y - h * .5); c.lineTo(x + w * .36, y - h * .5); c.lineTo(x + w * .7, y - h * .14); c.lineTo(x + w * .56, y + h * .5); c.closePath(); c.fill();
+  c.fillStyle = "#193345"; c.beginPath(); c.moveTo(x - w * .3, y - h * .31); c.lineTo(x - w * .22, y - h * .46); c.lineTo(x + w * .22, y - h * .46); c.lineTo(x + w * .3, y - h * .31); c.closePath(); c.fill();
+  c.fillStyle = "rgba(255,255,255,.36)"; c.fillRect(x - w * .43, y - h * .08, w * .12, h * .43);
+  c.fillStyle = "#fff2a6"; c.fillRect(x - w * .48, y + h * .32, 7 * scale, 4 * scale); c.fillRect(x + w * .28, y + h * .32, 7 * scale, 4 * scale);
 }
 
 export function Highway({
@@ -229,31 +282,68 @@ export function Highway({
       g.spawn--;
       if (g.spawn <= 0) {
         g.objects.push({
-          x: racing ? 120 + random(400) : 160 + random(3) * 160,
+          x: racing ? [185, 275, 365, 455][random(4)] : 160 + random(3) * 160,
           y: -30,
           coin: Math.random() < 0.3,
         });
         g.spawn = Math.max(15, 40 - Math.floor(g.time / 5));
       }
       bg(c);
-      c.fillStyle = "#132232";
-      c.fillRect(90, 0, 460, H);
-      c.strokeStyle = "#43c7e8";
-      c.setLineDash([24, 24]);
-      c.lineDashOffset = -g.time * 100;
-      for (const x of [240, 400]) {
-        c.beginPath();
-        c.moveTo(x, 0);
-        c.lineTo(x, H);
-        c.stroke();
+      if (racing) {
+        c.fillStyle = "#b9b568"; c.fillRect(0, 0, W, H);
+        c.fillStyle = "#6d9c46"; c.fillRect(0, 0, 85, H); c.fillRect(555, 0, 85, H);
+        for (let i = 0; i < 18; i++) {
+          const y = (i * 67 + (g.time * 75) % 500) % 500 - 30;
+          const x = i % 2 ? 38 : 600;
+          c.fillStyle = "rgba(44,66,32,.28)"; c.beginPath(); c.ellipse(x + 7, y + 18, 28, 10, 0, 0, Math.PI * 2); c.fill();
+          c.fillStyle = "#5b3b22"; c.fillRect(x - 3, y - 2, 6, 25);
+          c.strokeStyle = i % 3 ? "#3c7d35" : "#438b39"; c.lineWidth = 8;
+          for (let a = -2; a <= 2; a++) { c.beginPath(); c.moveTo(x, y); c.lineTo(x + a * 11, y - 14 + Math.abs(a) * 4); c.stroke(); }
+        }
+        c.fillStyle = "#393e3d"; c.beginPath(); c.moveTo(170, 0); c.lineTo(470, 0); c.lineTo(565, H); c.lineTo(75, H); c.closePath(); c.fill();
+        c.fillStyle = "rgba(255,255,255,.045)"; c.beginPath(); c.moveTo(320, 0); c.lineTo(470, 0); c.lineTo(565, H); c.lineTo(320, H); c.closePath(); c.fill();
+        c.strokeStyle = "#c8c3aa"; c.lineWidth = 8; c.beginPath(); c.moveTo(170, 0); c.lineTo(75, H); c.stroke(); c.beginPath(); c.moveTo(470, 0); c.lineTo(565, H); c.stroke();
+        c.strokeStyle = "#4b4f4c"; c.lineWidth = 3; c.beginPath(); c.moveTo(156, 0); c.lineTo(59, H); c.stroke(); c.beginPath(); c.moveTo(484, 0); c.lineTo(581, H); c.stroke();
+        c.strokeStyle = "rgba(255,255,235,.75)"; c.lineWidth = 3; c.setLineDash([20, 24]); c.lineDashOffset = -g.time * 100;
+        for (const x of [230, 320, 410]) { c.beginPath(); c.moveTo(320 + (x - 320) * .32, 0); c.lineTo(x, H); c.stroke(); }
+        c.setLineDash([]);
+      } else {
+        const roadGradient = c.createLinearGradient?.(0, 0, 0, H);
+        if (roadGradient) { roadGradient.addColorStop(0, "#112b3d"); roadGradient.addColorStop(1, "#06121d"); c.fillStyle = roadGradient; }
+        else c.fillStyle = "#081522";
+        c.fillRect(90, 0, 460, H); c.fillStyle = "rgba(67, 199, 232, .05)"; c.fillRect(90, 0, 460, H);
+        c.strokeStyle = "rgba(67, 199, 232, .7)"; c.lineWidth = 2;
+        c.beginPath(); c.moveTo(90, 0); c.lineTo(90, H); c.stroke(); c.beginPath(); c.moveTo(550, 0); c.lineTo(550, H); c.stroke();
+        for (const x of [110, 530]) for (let y = (g.time * 42) % 52 - 52; y < H; y += 52) { c.fillStyle = "rgba(97, 214, 176, .55)"; c.fillRect(x - 3, y, 6, 18); }
+        c.setLineDash([24, 24]); c.lineDashOffset = -g.time * 100;
+        for (const x of [240, 400]) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke(); }
+        c.setLineDash([]);
       }
-      c.setLineDash([]);
       for (const o of g.objects) {
         o.y += 4 + g.time * 0.06;
-        if (o.coin) circle(c, o.x, o.y, 11, "#d5aa50");
-        else {
-          c.fillStyle = racing ? "#f16f78" : "#a66acb";
+        if (o.coin) {
+          c.shadowBlur = 18;
+          c.shadowColor = "#f4c44f";
+          circle(c, o.x, o.y, 11, "#f4c44f");
+          c.shadowBlur = 0;
+          circle(c, o.x - 3, o.y - 3, 3, "rgba(255,255,255,.7)");
+        }
+        else if (racing) {
+          const scale = .58 + clamp(o.y / H, 0, 1) * .52;
+          raceCar(c, o.x, o.y, ["#e94c51", "#f0a43a", "#68727a"][Math.abs(Math.floor(o.x / 10)) % 3], scale);
+        } else {
+          const obstacle = racing ? "#f16f78" : "#a66acb";
+          c.shadowBlur = 12;
+          c.shadowColor = obstacle;
+          c.fillStyle = obstacle;
           c.fillRect(o.x - 24, o.y - 22, 48, 44);
+          c.shadowBlur = 0;
+          c.fillStyle = "rgba(255,255,255,.28)";
+          c.fillRect(o.x - 19, o.y - 17, 38, 5);
+          c.strokeStyle = "rgba(7, 18, 27, .5)";
+          c.lineWidth = 4;
+          c.beginPath(); c.moveTo(o.x - 18, o.y + 16); c.lineTo(o.x - 5, o.y - 14); c.stroke();
+          c.beginPath(); c.moveTo(o.x + 5, o.y + 16); c.lineTo(o.x + 18, o.y - 14); c.stroke();
         }
         if (
           Math.abs(o.x - g.x) < (o.coin ? 29 : 44) &&
@@ -274,9 +364,13 @@ export function Highway({
         }
       }
       g.objects = g.objects.filter((o) => o.y < H + 40);
-      c.fillStyle = "#61d6b0";
-      c.fillRect(g.x - 18, 346, 36, 48);
-      if (!racing) circle(c, g.x, 340, 13, "#d5aa50");
+      if (racing) raceCar(c, g.x, 370, "#18aeda", 1.12);
+      else {
+        c.shadowBlur = 16; c.shadowColor = "#61d6b0"; c.fillStyle = "#61d6b0"; c.fillRect(g.x - 13, 350, 26, 38); c.shadowBlur = 0;
+        circle(c, g.x, 340, 11, "#f4c44f"); circle(c, g.x - 3, 337, 3, "rgba(255,255,255,.7)");
+        c.strokeStyle = "#61d6b0"; c.lineWidth = 6; const stride = Math.sin(g.time * 12) * 7;
+        c.beginPath(); c.moveTo(g.x - 7, 388); c.lineTo(g.x - 12 + stride, 402); c.stroke(); c.beginPath(); c.moveTo(g.x + 7, 388); c.lineTo(g.x + 12 - stride, 402); c.stroke();
+      }
       setStatus(
         `${Math.floor(g.time)}s · Score ${Math.floor(g.time * 10) + g.score}`,
       );
@@ -294,14 +388,19 @@ export function Highway({
       paused={paused}
       status={status || "Dodge traffic. Collect gold."}
     >
-      <canvas
-        ref={canvas}
-        width={W}
-        height={H}
-        className="arcade-canvas"
-        aria-label="Highway arena"
-        onPointerDown={(e) => steer(point(e).x < game.current.x ? -1 : 1)}
-      />
+      <div className={`runner-game${racing ? " racing-game" : ""}`}>
+        <div className="runner-heading"><div><span className="runner-eyebrow">{racing ? "Coastal highway" : "Neon lane challenge"}</span><h2>{racing ? "Traffic Rush" : "Stay in the flow"}</h2></div><div className="runner-score"><strong>{Math.floor(game.current.time * 10) + game.current.score}</strong><span>score</span></div></div>
+        <div className="runner-stats"><span><i className="runner-dot cyan" />Time <b>{Math.floor(game.current.time)}s</b></span><span><i className="runner-dot gold" />Pickups <b>+100</b></span><span><i className="runner-dot coral" />Goal <b>{racing ? "60s" : "Survive"}</b></span></div>
+        <div className="runner-arena-wrap"><span className="runner-live">{racing ? "HIGHWAY 01 · LIVE" : "LIVE TRACK"}</span><canvas
+          ref={canvas}
+          width={W}
+          height={H}
+          className="arcade-canvas runner-canvas"
+          aria-label="Highway arena"
+          onPointerDown={(e) => steer(point(e).x < game.current.x ? -1 : 1)}
+        /></div>
+        <p className="runner-tip">{racing ? "Steer through traffic · avoid collisions · finish the 60 second run" : "Tap a side or use the arrows to change lanes · collect gold pickups"}</p>
+      </div>
       <DirectionPad move={(x) => steer(x)} />
     </GameFrame>
   );
@@ -349,14 +448,17 @@ export function BlobArena({ api, paused }: Props) {
       const radius = Math.sqrt(p.mass) * 3;
       p.x = clamp(p.x, radius, W - radius);
       p.y = clamp(p.y, radius, H - radius);
-      bg(c);
+      blobBg(c);
       s.food.forEach((f) => {
         if (Math.hypot(f.x - p.x, f.y - p.y) < radius) {
           p.mass += 1;
           f.x = 12 + random(616);
           f.y = 12 + random(416);
         }
-        circle(c, f.x, f.y, 3, "#d5aa50");
+        c.shadowBlur = 10;
+        c.shadowColor = "#d5aa50";
+        circle(c, f.x, f.y, 3.5, "#f4c44f");
+        c.shadowBlur = 0;
       });
       s.bots.forEach((b: Blob) => {
         b.x += b.vx * 1.4;
@@ -375,9 +477,23 @@ export function BlobArena({ api, paused }: Props) {
             finish(api, p.mass * 10, false, "Absorbed by a larger rival");
           }
         }
-        circle(c, b.x, b.y, r, b.mass > p.mass ? "#f16f78" : "#a66acb");
+        const rivalColor = b.mass > p.mass ? "#f16f78" : "#a66acb";
+        c.shadowBlur = 16;
+        c.shadowColor = rivalColor;
+        circle(c, b.x, b.y, r, rivalColor);
+        c.shadowBlur = 0;
+        circle(c, b.x - r * .28, b.y - r * .25, Math.max(2, r * .14), "rgba(255,255,255,.65)");
       });
+      c.strokeStyle = "rgba(97, 214, 176, .2)";
+      c.lineWidth = 2;
+      c.beginPath();
+      c.arc(s.target.x, s.target.y, 12, 0, Math.PI * 2);
+      c.stroke();
+      c.shadowBlur = 20;
+      c.shadowColor = "#61d6b0";
       circle(c, p.x, p.y, radius, "#61d6b0");
+      c.shadowBlur = 0;
+      circle(c, p.x - radius * .28, p.y - radius * .3, Math.max(2, radius * .16), "rgba(255,255,255,.7)");
       c.fillStyle = "#07121b";
       c.font = "bold 14px sans-serif";
       c.textAlign = "center";
@@ -397,9 +513,12 @@ export function BlobArena({ api, paused }: Props) {
       paused={paused}
       status={`Mass ${mass}/150 · Avoid bigger rivals`}
     >
-      <canvas
+      <div className="blob-game">
+        <div className="blob-heading"><div><span className="blob-eyebrow">Neon growth arena</span><h2>Absorb. Adapt. Expand.</h2></div><div className="blob-score"><strong>{mass}</strong><span>mass</span></div></div>
+        <div className="blob-stats"><span><i className="blob-dot mint" />Target <b>150 mass</b></span><span><i className="blob-dot coral" />Threats <b>7 rivals</b></span><span><i className="blob-dot gold" />Food <b>+1 each</b></span></div>
+        <div className="blob-arena-wrap"><span className="blob-live">LIVE ARENA</span><canvas
         ref={canvas}
-        className="arcade-canvas"
+        className="arcade-canvas blob-canvas"
         width={W}
         height={H}
         style={{ touchAction: "none" }}
@@ -411,7 +530,9 @@ export function BlobArena({ api, paused }: Props) {
           g.current.target = point(e);
           e.currentTarget.setPointerCapture(e.pointerId);
         }}
-      />
+      /></div>
+        <p className="blob-tip">Move your pointer to steer · absorb smaller blobs · avoid anything larger</p>
+      </div>
       <DirectionPad
         move={(x, y) =>
           (g.current.target = {
@@ -751,36 +872,74 @@ export function TowerDefense({ api, paused }: Props) {
         }
       }
       bg(c);
-      c.strokeStyle = "#2b4555";
-      c.lineWidth = 34;
+      c.fillStyle = "#72c94b";
+      c.fillRect(0, 0, W, H);
+      // Layered grass, flowers and edge foliage create a bright toy-diorama field.
+      for (let i = 0; i < 72; i++) {
+        const x = (i * 83 + 29) % W, y = (i * 47 + 17) % H;
+        c.fillStyle = i % 5 === 0 ? "#f8ef9c" : i % 3 === 0 ? "#a8e86f" : "#58b83f";
+        c.beginPath(); c.arc(x, y, i % 5 === 0 ? 2 : 1.5, 0, Math.PI * 2); c.fill();
+      }
+      for (let i = 0; i < 18; i++) {
+        const x = i < 9 ? 12 + (i % 3) * 22 : W - 56 + (i % 3) * 22;
+        const y = 25 + (i % 9) * 51;
+        c.fillStyle = "rgba(41,92,40,.35)"; c.beginPath(); c.ellipse(x + 5, y + 12, 20, 9, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = i % 2 ? "#237a3f" : "#2e9147"; c.beginPath(); c.arc(x, y, 18, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "#51ad55"; c.beginPath(); c.arc(x - 6, y - 7, 11, 0, Math.PI * 2); c.fill();
+      }
+      c.strokeStyle = "rgba(57,78,58,.30)";
+      c.lineWidth = 52;
+      c.lineCap = "round";
+      c.beginPath();
+      path.forEach((p, i) => (i ? c.lineTo(p.x + 5, p.y + 8) : c.moveTo(p.x + 5, p.y + 8)));
+      c.stroke();
+      c.strokeStyle = "#a7a89c";
+      c.lineWidth = 44;
       c.beginPath();
       path.forEach((p, i) => (i ? c.lineTo(p.x, p.y) : c.moveTo(p.x, p.y)));
       c.stroke();
+      c.strokeStyle = "#d2d1bd";
+      c.lineWidth = 34;
+      c.stroke();
+      for (let d = 12, stone = 0; d < 1070; d += 29, stone++) {
+        const p = along(d);
+        c.fillStyle = stone % 3 === 0 ? "rgba(255,255,255,.18)" : "rgba(80,87,75,.13)";
+        c.beginPath(); c.ellipse(p.x, p.y, 12, 3, -.15, 0, Math.PI * 2); c.fill();
+      }
       pads.forEach((p, i) => {
-        circle(
-          c,
-          p.x,
-          p.y,
-          23,
-          s.towers.some((t) => t.pad === i) ? "#61d6b0" : "#24384a",
-        );
+        const built = s.towers.some((t) => t.pad === i);
+        c.fillStyle = "rgba(41,83,37,.32)"; c.beginPath(); c.ellipse(p.x + 6, p.y + 12, 30, 13, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = built ? "#65727a" : "rgba(82,145,67,.7)";
+        c.beginPath(); c.ellipse(p.x, p.y, 27, 17, 0, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = built ? "#d6e0e5" : "rgba(232,255,210,.75)"; c.lineWidth = 2; c.stroke();
+        if (built) {
+          c.fillStyle = "#3f4c59"; c.fillRect(p.x - 11, p.y - 27, 22, 25);
+          c.fillStyle = "#596a78"; c.beginPath(); c.ellipse(p.x, p.y - 27, 15, 9, 0, 0, Math.PI * 2); c.fill();
+          c.strokeStyle = "#263442"; c.lineWidth = 7; c.beginPath(); c.moveTo(p.x + 7, p.y - 29); c.lineTo(p.x + 25, p.y - 38); c.stroke();
+          c.strokeStyle = "#8fa6b5"; c.lineWidth = 3; c.stroke();
+          c.fillStyle = "#f4c44f"; c.beginPath(); c.arc(p.x - 5, p.y - 31, 3, 0, Math.PI * 2); c.fill();
+        }
         c.fillStyle = "#f1f5f9";
         c.font = "14px sans-serif";
         c.textAlign = "center";
-        c.fillText(s.towers.some((t) => t.pad === i) ? "ϟ" : "+", p.x, p.y + 5);
+        if (!built) c.fillText("+", p.x, p.y + 5);
       });
       s.enemies.forEach((e) => {
         const p = along(e.distance);
-        circle(c, p.x, p.y, 12, "#f16f78");
+        c.fillStyle = "rgba(48,82,36,.35)"; c.beginPath(); c.ellipse(p.x + 4, p.y + 12, 14, 6, 0, 0, Math.PI * 2); c.fill();
+        c.fillStyle = e.hp > 45 ? "#9b62d0" : "#ef5060"; c.beginPath(); c.arc(p.x, p.y - 2, 13, 0, Math.PI * 2); c.fill();
+        c.fillStyle = "rgba(255,255,255,.55)"; c.beginPath(); c.arc(p.x - 5, p.y - 7, 4, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = "#513b3b"; c.lineWidth = 1; c.beginPath(); c.moveTo(p.x, p.y + 10); c.lineTo(p.x, p.y + 17); c.stroke();
       });
       s.beams = s.beams.filter((b) => --b.ttl > 0);
-      c.strokeStyle = "#43c7e8";
-      c.lineWidth = 2;
       s.beams.forEach((b) => {
+        c.strokeStyle = "rgba(67,199,232,.25)"; c.lineWidth = 8;
         c.beginPath();
         c.moveTo(b.from.x, b.from.y);
         c.lineTo(b.to.x, b.to.y);
         c.stroke();
+        c.strokeStyle = "#d4fbff"; c.lineWidth = 2;
+        c.beginPath(); c.moveTo(b.from.x, b.from.y); c.lineTo(b.to.x, b.to.y); c.stroke();
       });
       setStatus(`Gold ${s.gold} · Base ${s.health}/10 · Wave ${s.wave}/5`);
     },
@@ -795,7 +954,11 @@ export function TowerDefense({ api, paused }: Props) {
   };
   return (
     <GameFrame title="Tower Defense" paused={paused} status={status}>
-      <canvas
+      <div className="tower-game">
+      <div className="tower-heading"><div><span className="tower-eyebrow">Command deck</span><h2>Build your defense</h2></div><div className="tower-score"><strong>{g.current.gold}</strong><span>credits</span></div></div>
+      <div className="tower-stats"><span>Base <b>{g.current.health}/10</b></span><span>Wave <b>{g.current.wave}/5</b></span><span>Threat <b>{g.current.enemies.length}</b></span></div>
+      <div className="tower-battle-layout">
+      <div className="tower-map-frame"><span className="tower-map-label">Meadow pass</span><canvas
         ref={canvas}
         width={W}
         height={H}
@@ -806,23 +969,23 @@ export function TowerDefense({ api, paused }: Props) {
             i = pads.findIndex((t) => Math.hypot(p.x - t.x, p.y - t.y) < 30);
           if (i >= 0) buy(i);
         }}
-      />
-      <div className="number-pad">
+      /></div>
+      <aside className="tower-shop"><div className="tower-shop-title"><span>Arsenal</span><b>50 each</b></div><div className="tower-shop-grid">
         {pads.map((_, i) => (
           <button
             key={i}
-            className="btn btn-secondary"
+            className="tower-shop-item"
             disabled={
               g.current.gold < 50 || g.current.towers.some((t) => t.pad === i)
             }
             onClick={() => buy(i)}
           >
-            Pad {i + 1} · 50
+            <span className="tower-mini-cannon">●</span><b>Pad {i + 1}</b><small>{g.current.towers.some((t) => t.pad === i) ? "Built" : "50"}</small>
           </button>
         ))}
       </div>
       <button
-        className="btn btn-primary"
+        className="btn btn-primary tower-wave-button"
         disabled={active}
         onClick={() => {
           const s = g.current;
@@ -835,12 +998,23 @@ export function TowerDefense({ api, paused }: Props) {
       >
         Start wave {g.current.wave + 1}
       </button>
+      </aside>
+      </div>
+      </div>
     </GameFrame>
   );
 }
 
 type Bubble = { r: number; c: number; color: number };
-const BUBBLE_COLORS = ["#61d6b0", "#43c7e8", "#a66acb", "#d5aa50", "#f16f78"];
+const BUBBLE_COLORS = ["#22d85a", "#27aef3", "#d51be8", "#ffc62f", "#f03245"];
+function glossyBubble(c: CanvasRenderingContext2D, x: number, y: number, radius: number, color: string) {
+  c.shadowBlur = radius * .55; c.shadowColor = "rgba(5,20,80,.42)";
+  circle(c, x + 1, y + 3, radius, "#101b68"); c.shadowBlur = 0;
+  circle(c, x, y, radius, color);
+  c.strokeStyle = "rgba(255,255,255,.3)"; c.lineWidth = Math.max(1, radius * .08); c.beginPath(); c.arc(x, y, radius - 2, 0, Math.PI * 2); c.stroke();
+  c.fillStyle = "rgba(255,255,255,.82)"; c.beginPath(); c.ellipse(x - radius * .34, y - radius * .38, radius * .25, radius * .12, -.65, 0, Math.PI * 2); c.fill();
+  c.fillStyle = "rgba(255,255,255,.2)"; c.beginPath(); c.arc(x - radius * .18, y - radius * .18, radius * .52, 0, Math.PI * 2); c.fill();
+}
 const bubblePos = (r: number, c: number) => ({
   x: 85 + c * 44 + (r % 2) * 22,
   y: 30 + r * 38,
@@ -865,6 +1039,7 @@ export function BubbleShooter({ api, paused }: Props) {
     next: random(5),
     misses: 0,
     score: 0,
+    aim: { x: 320, y: 120 },
     over: false,
   });
   const [status, setStatus] = useState(
@@ -968,23 +1143,32 @@ export function BubbleShooter({ api, paused }: Props) {
         }
       }
       bg(c);
-      c.strokeStyle = "#f16f78";
-      c.beginPath();
-      c.moveTo(60, 360);
-      c.lineTo(580, 360);
-      c.stroke();
+      const bubbleSky = c.createLinearGradient?.(0, 0, 0, H);
+      if (bubbleSky) { bubbleSky.addColorStop(0, "#171b78"); bubbleSky.addColorStop(.6, "#123fe8"); bubbleSky.addColorStop(1, "#1dc8f3"); c.fillStyle = bubbleSky; }
+      else c.fillStyle = "#174edb";
+      c.fillRect(42, 0, 556, H);
+      c.fillStyle = "rgba(255,255,255,.08)"; c.beginPath(); c.arc(320, 430, 210, Math.PI, Math.PI * 2); c.fill();
+      c.strokeStyle = "rgba(255,102,125,.65)"; c.lineWidth = 2; c.setLineDash([8, 8]);
+      c.beginPath(); c.moveTo(55, 356); c.lineTo(585, 356); c.stroke(); c.setLineDash([]);
+      if (!s.bullet) {
+        const dx = s.aim.x - 320, dy = s.aim.y - 410, d = Math.max(1, Math.hypot(dx, dy));
+        for (let n = 1; n <= 7; n++) {
+          const dist = 32 + n * 22;
+          circle(c, 320 + dx / d * dist, 410 + dy / d * dist, Math.max(2, 5 - n * .35), "rgba(255,255,255,.78)");
+        }
+      }
       s.bubbles.forEach((b) => {
         const p = bubblePos(b.r, b.c);
-        circle(c, p.x, p.y, 20, BUBBLE_COLORS[b.color]);
-        c.fillStyle = "#07121b";
-        c.font = "bold 14px sans-serif";
-        c.textAlign = "center";
-        c.fillText(String(b.color + 1), p.x, p.y + 5);
+        glossyBubble(c, p.x, p.y, 20, BUBBLE_COLORS[b.color]);
       });
       if (s.bullet)
-        circle(c, s.bullet.x, s.bullet.y, 20, BUBBLE_COLORS[s.bullet.color]);
-      circle(c, 320, 410, 20, BUBBLE_COLORS[s.color]);
-      circle(c, 370, 413, 12, BUBBLE_COLORS[s.next]);
+        glossyBubble(c, s.bullet.x, s.bullet.y, 20, BUBBLE_COLORS[s.bullet.color]);
+      c.fillStyle = "rgba(4,20,75,.55)"; c.beginPath(); c.ellipse(320, 424, 48, 14, 0, 0, Math.PI * 2); c.fill();
+      c.fillStyle = "#deecff"; c.beginPath(); c.moveTo(304, 423); c.lineTo(320, 389); c.lineTo(336, 423); c.closePath(); c.fill();
+      glossyBubble(c, 320, 397, 21, BUBBLE_COLORS[s.color]);
+      c.fillStyle = "rgba(8,25,91,.65)"; c.beginPath(); c.arc(378, 408, 20, 0, Math.PI * 2); c.fill();
+      glossyBubble(c, 378, 405, 12, BUBBLE_COLORS[s.next]);
+      c.fillStyle = "#eef7ff"; c.font = "bold 9px sans-serif"; c.textAlign = "center"; c.fillText("NEXT", 378, 433);
       setStatus(
         `Score ${s.score} · ${s.bubbles.length} bubbles · ${5 - s.misses} misses until new row`,
       );
@@ -994,12 +1178,17 @@ export function BubbleShooter({ api, paused }: Props) {
   );
   return (
     <GameFrame title="Bubble Shooter" paused={paused} status={status}>
+      <div className="bubble-game">
+      <div className="bubble-heading"><div><span className="bubble-eyebrow">Color pop arcade</span><h2>Bubble Burst</h2></div><div className="bubble-score"><strong>{g.current.score}</strong><span>score</span></div></div>
+      <div className="bubble-stats"><span>Remaining <b>{g.current.bubbles.length}</b></span><span>Safety shots <b>{5 - g.current.misses}</b></span><span>Match <b>3+</b></span></div>
+      <div className="bubble-board-wrap"><span className="bubble-board-label">Aim · Bank · Match</span>
       <canvas
         ref={canvas}
         width={W}
         height={H}
         className="arcade-canvas"
         aria-label="Bubble board: tap a destination above the launcher"
+        onPointerMove={(e) => { g.current.aim = point(e); }}
         onPointerDown={(e) => {
           const s = g.current,
             p = point(e);
@@ -1016,6 +1205,9 @@ export function BubbleShooter({ api, paused }: Props) {
           };
         }}
       />
+      </div>
+      <p className="bubble-tip">Tap anywhere above the launcher to shoot · bounce shots off the walls</p>
+      </div>
     </GameFrame>
   );
 }

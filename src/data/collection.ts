@@ -112,11 +112,11 @@ const entries: [string, string, number, string, string[]][] = [
     "word-guess",
     "Word Guess",
     1,
-    "Guess a five-letter word in six tries.",
+    "Find seven hidden English words in a fresh letter grid.",
     [
-      "Type a valid five-letter word and press Enter.",
-      "Mint means the correct position, gold means the letter belongs elsewhere.",
-      "Repeated letters are scored only as often as they occur in the answer.",
+      "Drag across letters horizontally, vertically, or diagonally.",
+      "Words may run forwards or backwards.",
+      "Find every word in the list to complete the puzzle.",
     ],
   ],
   [
@@ -134,10 +134,10 @@ const entries: [string, string, number, string, string[]][] = [
     "jigsaw",
     "Jigsaw Puzzle",
     1,
-    "Reassemble a shuffled 4×4 picture of the Bullwave world.",
+    "Choose from a gallery and reassemble a shuffled 4×4 Bullwave picture.",
     [
       "Select two pieces to swap them.",
-      "Use the reference picture to rebuild the scene.",
+      "Choose an artwork, then use its reference picture to rebuild the scene.",
       "Complete the image in as few swaps as possible.",
     ],
   ],

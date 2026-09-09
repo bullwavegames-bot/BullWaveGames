@@ -28,12 +28,12 @@ export function AppShell() {
   }, []);
 
   useEffect(() => {
-    if (reduced) setIntroDone();
+    if (reduced || playing) setIntroDone();
     else {
-      const timer = window.setTimeout(setIntroDone, 1100);
+      const timer = window.setTimeout(setIntroDone, 5000);
       return () => window.clearTimeout(timer);
     }
-  }, [reduced, setIntroDone]);
+  }, [playing, reduced, setIntroDone]);
 
   useEffect(() => {
     if (reduced || playing || !("IntersectionObserver" in window)) return;
@@ -64,8 +64,21 @@ export function AppShell() {
         Skip to content
       </a>
       {!introDone ? (
-        <div className="intro" role="img" aria-label="Bullwave Games">
-          <img src="/brand/bullwave-mark.png" alt="" />
+        <div className="intro" role="dialog" aria-label="Welcome to Bullwave Games">
+          <div className="intro-grid" aria-hidden="true" />
+          <div className="intro-orbit intro-orbit-one" aria-hidden="true" />
+          <div className="intro-orbit intro-orbit-two" aria-hidden="true" />
+          <div className="intro-content">
+            <div className="intro-mark-wrap" aria-hidden="true">
+              <span className="intro-pulse" />
+              <img src="/brand/bullwave-mark.png" alt="" />
+            </div>
+            <p className="intro-kicker">Original games · everyday escapes</p>
+            <h1><span>Bullwave</span> Games</h1>
+            <p className="intro-tagline">Play the wave.</p>
+            <div className="intro-loader" aria-hidden="true"><span /></div>
+          </div>
+          <button className="intro-skip" onClick={setIntroDone}>Skip intro</button>
         </div>
       ) : null}
       {!playing ? (
@@ -163,4 +176,3 @@ export function AppShell() {
     </div>
   );
 }
-

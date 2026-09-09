@@ -88,7 +88,7 @@ const AppContext = createContext<AppContextValue | null>(null);
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const auth = useAuth();
   const [store, setStore] = useState<PersistedStore>(() => loadStore());
-  const [introDone, setIntro] = useState(() => sessionStorage.getItem("bw.intro") === "1");
+  const [introDone, setIntro] = useState(false);
   const [toasts, setToasts] = useState<AppContextValue["toasts"]>([]);
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
 
@@ -129,7 +129,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       avatars: [...auth.avatars],
       identityKey,
       setIntroDone: () => {
-        sessionStorage.setItem("bw.intro", "1");
         setIntro(true);
       },
       setAge: (age) => patch((current) => ({ ...current, age })),

@@ -8,7 +8,7 @@ import {
   useTick,
   type Props,
 } from "./common";
-import { findMatches, slide2048, wordFeedback } from "./rules";
+import { findMatches, slide2048 } from "./rules";
 
 export function Tiles2048({ api, paused }: Props) {
   const spawn = (b: number[]) => {
@@ -96,75 +96,112 @@ const WORDS =
   "ABOUT ABOVE ABUSE ACTOR ACUTE ADMIT ADOPT ADULT AFTER AGAIN AGENT AGREE AHEAD ALARM ALBUM ALERT ALIEN ALIVE ALLOW ALONE ALONG ALTER AMONG ANGEL ANGER ANGLE ANGRY APART APPLE APPLY ARGUE ARISE ARMOR AVOID AWAKE AWARD AWARE AWFUL BADGE BAKER BASIC BEACH BEGAN BEGIN BEING BELOW BENCH BIRTH BLACK BLADE BLAME BLANK BLAST BLEND BLIND BLOCK BLOOD BOARD BOAST BONUS BOOST BOUND BRAIN BRAND BRAVE BREAD BREAK BRICK BRIDE BRIEF BRING BROAD BROKE BROWN BRUSH BUILD BUILT BUNCH CABLE CARRY CATCH CAUSE CHAIN CHAIR CHARM CHART CHASE CHEAP CHECK CHEEK CHEER CHEST CHIEF CHILD CHINA CHOSE CIVIL CLAIM CLASS CLEAN CLEAR CLERK CLICK CLIMB CLOCK CLOSE CLOUD COACH COAST COLOR COMET COMIC COULD COUNT COURT COVER CRACK CRAFT CRANE CRASH CRAZY CREAM CRIME CROSS CROWD CROWN CURVE CYCLE DAILY DANCE DEALT DEATH DELAY DEPTH DIRTY DOING DOUBT DOZEN DRAFT DRAIN DRAMA DRAWN DREAM DRESS DRINK DRIVE DROVE EARLY EARTH EIGHT ELBOW ELDER ELECT ELITE EMPTY ENEMY ENJOY ENTER ENTRY EQUAL ERROR EVENT EVERY EXACT EXIST EXTRA FAITH FALSE FAULT FEAST FIELD FIFTH FIFTY FIGHT FINAL FIRST FIXED FLAME FLASH FLEET FLOOR FLOUR FOCUS FORCE FORTH FORTY FORUM FOUND FRAME FRESH FRONT FRUIT FULLY FUNNY GIANT GIVEN GLASS GLOBE GOING GRACE GRADE GRAIN GRAND GRANT GRAPE GRASS GREAT GREEN GROUP GROWN GUARD GUESS GUEST GUIDE HABIT HAPPY HEART HEAVY HELLO HONEY HONOR HORSE HOTEL HOUSE HUMAN IDEAL IMAGE INDEX INNER INPUT ISSUE JOINT JUDGE JUICE KNIFE KNOCK KNOWN LABEL LARGE LASER LATER LAUGH LAYER LEARN LEAST LEAVE LEGAL LEMON LEVEL LIGHT LIMIT LOCAL LOOSE LUCKY LUNCH MAGIC MAJOR MAKER MANGO MATCH MAYBE MAYOR MEDIA METAL MIGHT MINOR MODEL MONEY MONTH MORAL MOTOR MOUNT MOUSE MOUTH MOVIE MUSIC NEEDS NEVER NIGHT NOISE NORTH NOVEL NURSE OCCUR OCEAN OFFER OFTEN OLIVE OPERA ORDER OTHER OUGHT OUTER OWNER PAINT PANEL PAPER PARTY PEACE PEACH PEARL PETER PHASE PHONE PHOTO PIANO PIECE PILOT PITCH PLACE PLAIN PLANE PLANT PLATE POINT POUND POWER PRESS PRICE PRIDE PRIME PRINT PRIOR PRIZE PROOF PROUD PROVE PUPPY QUEEN QUERY QUEST QUICK QUIET QUITE RADIO RAISE RANGE RAPID RATIO REACH READY REFER RELAX REPLY RIGHT RIVER ROBIN ROBOT ROUGH ROUND ROUTE ROYAL RUGBY RURAL SCALE SCENE SCOPE SCORE SENSE SERVE SEVEN SHADE SHAKE SHALL SHAME SHAPE SHARE SHARK SHARP SHEEP SHEET SHELF SHELL SHIFT SHINE SHIRT SHOCK SHOOT SHORT SHOWN SIGHT SINCE SIXTH SIXTY SKILL SLEEP SLICE SLIDE SMALL SMART SMILE SMOKE SOLAR SOLID SOLVE SORRY SOUND SOUTH SPACE SPARE SPEAK SPEED SPEND SPENT SPICE SPLIT SPOKE SPORT STAFF STAGE STAIR STAKE STAND START STATE STEAM STEEL STEEP STICK STILL STOCK STONE STOOD STORE STORM STORY STRIP STUDY STUFF STYLE SUGAR SUITE SUNNY SUPER SWEET SWORD TABLE TAKEN TASTE TEACH TEETH THANK THEIR THEME THERE THESE THICK THING THINK THIRD THOSE THREE THROW TIGER TIGHT TIRED TITLE TODAY TOOTH TOPIC TOTAL TOUCH TOUGH TOWER TRACK TRADE TRAIL TRAIN TREAT TREND TRIAL TRIED TRULY TRUST TRUTH TWICE UNDER UNION UNITY UNTIL UPPER UPSET URBAN USAGE USUAL VALID VALUE VIDEO VIRUS VISIT VITAL VOICE WASTE WATCH WATER WHEEL WHERE WHICH WHILE WHITE WHOLE WHOSE WOMAN WOMEN WORLD WORRY WORTH WOULD WRITE WRONG WROTE YIELD YOUNG YOUTH ZEBRA".split(
     " ",
   );
-export function WordGuess({ api, paused }: Props) {
-  const [answer] = useState(
-    () =>
-      shuffle([
-        "OCEAN",
-        "CRANE",
-        "GRAPE",
-        "LIGHT",
-        "MANGO",
-        "PAPER",
-        "QUIET",
-        "TIGER",
-        "WATER",
-        "DREAM",
-      ])[0],
-  );
-  const [guess, setGuess] = useState("");
-  const [rows, setRows] = useState<string[]>([]);
-  const [message, setMessage] = useState("Guess a five-letter word.");
-  const submit = () => {
-    if (paused) return;
-    const g = guess.toUpperCase();
-    if (!WORDS.includes(g)) {
-      setMessage("Choose a word from the game's English dictionary.");
-      return;
+const SEARCH_SIZE = 10;
+const SEARCH_DIRECTIONS = [
+  [0, 1], [1, 0], [1, 1], [1, -1],
+  [0, -1], [-1, 0], [-1, -1], [-1, 1],
+] as const;
+type SearchPuzzle = { grid: string[]; words: string[] };
+
+function makeWordSearch(): SearchPuzzle {
+  const words = shuffle(WORDS).slice(0, 7);
+  const grid = Array(SEARCH_SIZE * SEARCH_SIZE).fill("");
+  for (const word of words) {
+    let placed = false;
+    for (let attempt = 0; attempt < 300 && !placed; attempt++) {
+      const [dr, dc] = SEARCH_DIRECTIONS[random(SEARCH_DIRECTIONS.length)];
+      const row = random(SEARCH_SIZE);
+      const col = random(SEARCH_SIZE);
+      const endRow = row + dr * (word.length - 1);
+      const endCol = col + dc * (word.length - 1);
+      if (endRow < 0 || endRow >= SEARCH_SIZE || endCol < 0 || endCol >= SEARCH_SIZE) continue;
+      const cells = Array.from({ length: word.length }, (_, i) => (row + dr * i) * SEARCH_SIZE + col + dc * i);
+      if (cells.some((cell, i) => grid[cell] && grid[cell] !== word[i])) continue;
+      cells.forEach((cell, i) => { grid[cell] = word[i]; });
+      placed = true;
     }
-    const next = [...rows, g];
-    setRows(next);
-    setGuess("");
-    setMessage("");
-    if (g === answer) finish(api, (7 - next.length) * 100, true, answer);
-    else if (next.length === 6) finish(api, 0, false, `The word was ${answer}`);
+  }
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  return { grid: grid.map((letter) => letter || alphabet[random(alphabet.length)]), words };
+}
+
+function searchLine(start: number, end: number): number[] {
+  const sr = Math.floor(start / SEARCH_SIZE), sc = start % SEARCH_SIZE;
+  const er = Math.floor(end / SEARCH_SIZE), ec = end % SEARCH_SIZE;
+  const rowDelta = er - sr, colDelta = ec - sc;
+  if (rowDelta !== 0 && colDelta !== 0 && Math.abs(rowDelta) !== Math.abs(colDelta)) return [start];
+  const length = Math.max(Math.abs(rowDelta), Math.abs(colDelta)) + 1;
+  const dr = Math.sign(rowDelta), dc = Math.sign(colDelta);
+  return Array.from({ length }, (_, i) => (sr + dr * i) * SEARCH_SIZE + sc + dc * i);
+}
+
+export function WordGuess({ api, paused }: Props) {
+  const [puzzle] = useState(makeWordSearch);
+  const [found, setFound] = useState<Record<string, number[]>>({});
+  const [start, setStart] = useState<number | null>(null);
+  const [selection, setSelection] = useState<number[]>([]);
+  const [message, setMessage] = useState("Find all seven hidden words.");
+  const finishSelection = (cells = selection) => {
+    if (paused || start === null) return;
+    const chosen = cells.map((cell) => puzzle.grid[cell]).join("");
+    const reverse = [...chosen].reverse().join("");
+    const word = puzzle.words.find((item) => !found[item] && (item === chosen || item === reverse));
+    if (word) {
+      const next = { ...found, [word]: cells };
+      setFound(next);
+      setMessage(`${word} found! ${Object.keys(next).length} of ${puzzle.words.length}.`);
+      if (Object.keys(next).length === puzzle.words.length)
+        finish(api, 700, true, "All hidden words found");
+    } else if (cells.length > 1) setMessage("That line is not one of the hidden words.");
+    setStart(null);
+    setSelection([]);
   };
+  const foundCells = new Set(Object.values(found).flat());
   return (
     <GameFrame title="Word Guess" paused={paused} status={message}>
-      <div className="word-grid">
-        {Array.from({ length: 6 }, (_, r) => {
-          const word = rows[r] || (r === rows.length ? guess : "");
-          const feedback = rows[r] ? wordFeedback(word, answer) : [];
-          return Array.from({ length: 5 }, (_, c) => (
-            <span key={`${r}-${c}`} className={feedback[c] || ""}>
-              {word[c]}
-            </span>
-          ));
-        })}
+      <div className="word-search-game">
+        <div className="word-guess-heading">
+          <div>
+            <span className="word-guess-eyebrow">Hidden word challenge</span>
+            <h2>Find all the words</h2>
+          </div>
+          <span className="word-attempts">{Object.keys(found).length}<b>/{puzzle.words.length}</b> found</span>
+        </div>
+        <p className="word-search-help">Drag across letters horizontally, vertically, or diagonally.</p>
+        <div
+          className="word-search-grid"
+          role="grid"
+          aria-label="Word search letter grid"
+          onPointerLeave={() => { if (start !== null) finishSelection(); }}
+        >
+          {puzzle.grid.map((letter, index) => (
+            <button
+              type="button"
+              key={index}
+              role="gridcell"
+              aria-label={`Row ${Math.floor(index / SEARCH_SIZE) + 1}, column ${(index % SEARCH_SIZE) + 1}: ${letter}`}
+              className={`${foundCells.has(index) ? "found" : ""} ${selection.includes(index) ? "selecting" : ""}`}
+              onPointerDown={(event) => {
+                if (paused) return;
+                event.preventDefault();
+                setStart(index);
+                setSelection([index]);
+              }}
+              onPointerEnter={() => {
+                if (start !== null) setSelection(searchLine(start, index));
+              }}
+              onPointerUp={() => finishSelection(selection.length > 1 ? selection : [index])}
+            >
+              {letter}
+            </button>
+          ))}
+        </div>
+        <div className="word-search-list" aria-label="Words to find">
+          {puzzle.words.map((word) => (
+            <span key={word} className={found[word] ? "found" : ""}>{word}</span>
+          ))}
+        </div>
       </div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          submit();
-        }}
-        className="game-input-row"
-      >
-        <label>
-          Five-letter word
-          <input
-            autoComplete="off"
-            maxLength={5}
-            value={guess}
-            onChange={(e) =>
-              setGuess(e.target.value.replace(/[^a-z]/gi, "").toUpperCase())
-            }
-          />
-        </label>
-        <button className="btn btn-primary">Guess</button>
-      </form>
-      <p className="meta">
-        Mint: right place · Gold: wrong place · Slate: absent
-      </p>
     </GameFrame>
   );
 }
@@ -411,6 +448,7 @@ export function MemoryMatch({ api, paused }: Props) {
   const [open, setOpen] = useState<number[]>([]);
   const [found, setFound] = useState<number[]>([]);
   const [moves, setMoves] = useState(0);
+  const [best, setBest] = useState<number | null>(null);
   const [delay, setDelay] = useState(0);
   useTick(
     () => {
@@ -435,6 +473,8 @@ export function MemoryMatch({ api, paused }: Props) {
         setFound(f);
         setOpen([]);
         if (f.length === 16)
+          setBest((current) => (current === null ? moves + 1 : Math.min(current, moves + 1)));
+        if (f.length === 16)
           finish(
             api,
             Math.max(100, 1000 - (moves + 1) * 20),
@@ -448,13 +488,24 @@ export function MemoryMatch({ api, paused }: Props) {
     <GameFrame
       title="Memory Match"
       paused={paused}
-      status={`${found.length / 2}/8 pairs · ${moves} guesses`}
+      status={`${found.length / 2}/8 pairs · ${moves} guesses${best ? ` · Best ${best}` : ""}`}
     >
-      <div className="tile-grid memory-grid">
+      <div className="memory-game">
+        <div className="memory-heading">
+          <div>
+            <span className="memory-eyebrow">Focus &amp; recall</span>
+            <h2>Match the constellation</h2>
+            <p>Reveal two cards at a time and pair every symbol.</p>
+          </div>
+          <div className="memory-score"><strong>{found.length / 2}</strong><span>/ 8 pairs</span></div>
+        </div>
+        <div className="memory-progress" aria-label={`${found.length / 16 * 100}% complete`}><span style={{ width: `${found.length / 16 * 100}%` }} /></div>
+        <div className="memory-grid" role="grid" aria-label="Memory cards">
         {cards.map((v, i) => (
           <button
             key={i}
-            className={found.includes(i) ? "matched" : ""}
+            role="gridcell"
+            className={`${found.includes(i) ? "matched" : ""} ${open.includes(i) ? "revealed" : ""}`}
             aria-label={
               open.includes(i) || found.includes(i)
                 ? `Symbol ${v + 1}`
@@ -462,74 +513,97 @@ export function MemoryMatch({ api, paused }: Props) {
             }
             onClick={() => click(i)}
           >
-            {open.includes(i) || found.includes(i)
-              ? ["♠", "♥", "♦", "♣", "★", "☀", "☾", "♫"][v]
-              : "?"}
+            <span className="memory-card-inner">
+              <span className="memory-card-front" aria-hidden="true" />
+              <span className="memory-card-back">{open.includes(i) || found.includes(i) ? ["♠", "♥", "♦", "♣", "★", "☀", "☾", "♫"][v] : ""}</span>
+            </span>
           </button>
         ))}
+        </div>
+        <div className="memory-tips"><span>✦ Find all 8 pairs</span><span>↗ Fewer guesses = higher score</span><span>◷ Take your time</span></div>
       </div>
     </GameFrame>
   );
 }
 
+const JIGSAW_PUZZLES = [
+  { title: "Neon Bull", src: "/covers/bullwave-neon-hero.png", alt: "Golden bull charging through a neon tunnel" },
+  { title: "Kite Festival", src: "/puzzles/kite-festival.jpg", alt: "Colorful kites above a sunlit coastal city" },
+  { title: "Lantern Garden", src: "/puzzles/lantern-garden.jpg", alt: "Moonlit garden with glowing lanterns and lotus ponds" },
+  { title: "Rangoli Courtyard", src: "/puzzles/rangoli-courtyard.jpg", alt: "Luminous rangoli surrounded by diyas in a courtyard" },
+] as const;
+
+function shuffledJigsaw() {
+  const p = shuffle([...Array(16).keys()]);
+  if (p.every((x, i) => x === i)) [p[0], p[1]] = [p[1], p[0]];
+  return p;
+}
+
 export function Jigsaw({ api, paused }: Props) {
-  const [pieces, setPieces] = useState(() => {
-    const p = shuffle([...Array(16).keys()]);
-    if (p.every((x, i) => x === i)) [p[0], p[1]] = [p[1], p[0]];
-    return p;
-  });
+  const [puzzleIndex, setPuzzleIndex] = useState(0);
+  const [pieces, setPieces] = useState(shuffledJigsaw);
   const [selected, setSelected] = useState<number | null>(null);
   const [moves, setMoves] = useState(0);
+  const puzzle = JIGSAW_PUZZLES[puzzleIndex];
+  const restart = (nextIndex = puzzleIndex) => {
+    setPuzzleIndex(nextIndex);
+    setPieces(shuffledJigsaw());
+    setSelected(null);
+    setMoves(0);
+  };
   return (
     <GameFrame
       title="Jigsaw Puzzle"
       paused={paused}
       status={`${pieces.filter((p, i) => p === i).length}/16 in place · ${moves} swaps`}
     >
-      <div className="jigsaw-layout">
-        <div className="tile-grid jigsaw-grid">
-          {pieces.map((p, i) => (
-            <button
-              aria-label={`Piece ${p + 1}, slot ${i + 1}`}
-              aria-pressed={selected === i}
-              key={i}
-              style={{
-                backgroundImage: "url('/covers/bullwave-neon-hero.png')",
-                backgroundSize: "400% 400%",
-                backgroundPosition: `${((p % 4) * 100) / 3}% ${(Math.floor(p / 4) * 100) / 3}%`,
-              }}
-              onClick={() => {
-                if (selected === null) {
-                  setSelected(i);
-                  return;
-                }
-                if (selected === i) {
-                  setSelected(null);
-                  return;
-                }
-                const n = [...pieces];
-                [n[i], n[selected]] = [n[selected], n[i]];
-                setPieces(n);
-                setSelected(null);
-                setMoves(moves + 1);
-                if (n.every((x, j) => x === j))
-                  finish(
-                    api,
-                    Math.max(100, 1000 - moves * 10),
-                    true,
-                    `${moves + 1} swaps`,
-                  );
-              }}
-            />
+      <div className="jigsaw-game">
+        <div className="jigsaw-heading">
+          <div><span className="word-guess-eyebrow">Picture collection</span><h2>{puzzle.title}</h2></div>
+          <button className="btn btn-secondary" onClick={() => restart()}>Shuffle again</button>
+        </div>
+        <div className="jigsaw-gallery" aria-label="Choose a puzzle image">
+          {JIGSAW_PUZZLES.map((item, index) => (
+            <button key={item.title} aria-pressed={puzzleIndex === index} onClick={() => restart(index)}>
+              <img src={item.src} alt="" /><span>{item.title}</span>
+            </button>
           ))}
         </div>
-        <figure>
-          <img
-            src="/covers/bullwave-neon-hero.png"
-            alt="Reference picture: golden bull in a neon tunnel"
-          />
-          <figcaption>Reference · swap any two tiles</figcaption>
-        </figure>
+        <div className="jigsaw-layout">
+          <div className="jigsaw-board-wrap">
+            <div className="jigsaw-grid" aria-label={`${puzzle.title} puzzle board`}>
+              {pieces.map((p, i) => (
+                <button
+                  className={`jigsaw-piece ${p === i ? "in-place" : ""}`}
+                  aria-label={`Piece ${p + 1}, slot ${i + 1}${p === i ? ", correct" : ""}`}
+                  aria-pressed={selected === i}
+                  key={i}
+                  style={{
+                    backgroundImage: `url('${puzzle.src}')`,
+                    backgroundSize: "400% 400%",
+                    backgroundPosition: `${((p % 4) * 100) / 3}% ${(Math.floor(p / 4) * 100) / 3}%`,
+                  }}
+                  onClick={() => {
+                    if (selected === null) { setSelected(i); return; }
+                    if (selected === i) { setSelected(null); return; }
+                    const n = [...pieces];
+                    [n[i], n[selected]] = [n[selected], n[i]];
+                    setPieces(n);
+                    setSelected(null);
+                    setMoves(moves + 1);
+                    if (n.every((x, j) => x === j))
+                      finish(api, Math.max(100, 1000 - moves * 10), true, `${moves + 1} swaps · ${puzzle.title}`);
+                  }}
+                />
+              ))}
+            </div>
+            <p className="jigsaw-tip">Select any tile, then select another to swap them.</p>
+          </div>
+          <figure className="jigsaw-reference">
+            <div className="jigsaw-reference-image"><img src={puzzle.src} alt={`Reference: ${puzzle.alt}`} /></div>
+            <figcaption><span>Reference image</span><strong>{puzzle.title}</strong><small>Match all 16 tiles to finish</small></figcaption>
+          </figure>
+        </div>
       </div>
     </GameFrame>
   );

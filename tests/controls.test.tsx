@@ -154,15 +154,9 @@ try {
       assert.equal(results.at(-1)?.metric, "Crossword solved");
     }
     if (g.slug === "word-guess") {
-      await act(() =>
-        tree.root
-          .findByType("input")
-          .props.onChange({ target: { value: "ZZZZZ" } }),
-      );
-      await act(() =>
-        tree.root.findByType("form").props.onSubmit({ preventDefault() {} }),
-      );
-      assert.match(text(tree.toJSON()), /dictionary/);
+      assert.equal(tree.root.findAllByProps({ role: "gridcell" }).length, 100);
+      assert.equal(tree.root.findAllByType("input").length, 0);
+      assert.match(text(tree.toJSON()), /Find all the words/);
     }
     if (g.slug === "memory-match") {
       await click(tree.root.findAllByType("button")[0]);
@@ -170,8 +164,9 @@ try {
       assert.match(text(tree.toJSON()), /1 guesses/);
     }
     if (g.slug === "jigsaw") {
-      await click(tree.root.findAllByType("button")[0]);
-      await click(tree.root.findAllByType("button")[1]);
+      const pieces = tree.root.findAllByType("button").filter((button: any) => button.props.className?.includes("jigsaw-piece"));
+      await click(pieces[0]);
+      await click(pieces[1]);
       assert.match(text(tree.toJSON()), /1 swaps/);
     }
     if (g.slug === "aim-trainer") {
