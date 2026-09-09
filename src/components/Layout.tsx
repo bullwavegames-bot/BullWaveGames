@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { PRODUCT } from "../config/product";
 import { useApp } from "../state/AppState";
+import { AccountMenu } from "./AccountMenu";
 import { ButtonLink } from "./ui";
 
 function Item({ to, children }: { to: string; children: ReactNode }) {
@@ -17,7 +18,6 @@ export function AppShell() {
   const location = useLocation();
   const playing = location.pathname.startsWith("/play/") && location.pathname !== "/play";
   const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const reduced = settings.reducedMotion || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   useEffect(() => {
@@ -83,33 +83,7 @@ export function AppShell() {
                   <Item to="/challenges">Challenges</Item>
                   <Item to="/collection">Collection</Item>
                   <Item to="/membership">Membership</Item>
-                  <div style={{ position: "relative" }}>
-                    <button className="avatar" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
-                      {user.displayName.slice(0, 1).toUpperCase()}
-                    </button>
-                    {menuOpen ? (
-                      <div className="menu" role="menu">
-                        <Link to="/profile" onClick={() => setMenuOpen(false)}>
-                          Profile
-                        </Link>
-                        <Link to="/billing" onClick={() => setMenuOpen(false)}>
-                          Billing
-                        </Link>
-                        <Link to="/settings" onClick={() => setMenuOpen(false)}>
-                          Settings
-                        </Link>
-                        <Link to="/help" onClick={() => setMenuOpen(false)}>
-                          Help
-                        </Link>
-                        {user.role === "admin" ? (
-                          <Link to="/admin" onClick={() => setMenuOpen(false)}>
-                            Operations
-                          </Link>
-                        ) : null}
-                        <Logout close={() => setMenuOpen(false)} />
-                      </div>
-                    ) : null}
-                  </div>
+                  <AccountMenu user={user} />
                 </>
               ) : (
                 <>
@@ -187,20 +161,6 @@ export function AppShell() {
         ))}
       </div>
     </div>
-  );
-}
-
-function Logout({ close }: { close: () => void }) {
-  const { logout } = useApp();
-  return (
-    <button
-      onClick={() => {
-        logout();
-        close();
-      }}
-    >
-      Log out
-    </button>
   );
 }
 

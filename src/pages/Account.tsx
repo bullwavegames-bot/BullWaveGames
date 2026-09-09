@@ -1,17 +1,48 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { formatInr, planById, PRODUCT } from "../config/product";
 import { HELP_ARTICLES } from "../data/content";
 import { isMember } from "../lib/access";
+import { api } from "../lib/api";
 import { formatKolkata } from "../lib/time";
 import { useApp } from "../state/AppState";
 import { Button, ButtonLink, Dialog, EmptyState, Field, Notice, TextInput } from "../components/ui";
+import type { Entitlement, Invoice } from "../types";
 
 export function BillingPage() {
-  const { user, entitlement, invoices, cancelRenewal, updateBillingEmail } = useApp();
+  const { user, updateBillingEmail } = useApp();
   const [email, setEmail] = useState(user?.billingEmail ?? "");
   const [cancelOpen, setCancelOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [entitlement, setEntitlement] = useState<Entitlement>({
+    planId: null,
+    status: "none",
+    accessEndDate: null,
+    nextPaymentDate: null,
+    cancelAtPeriodEnd: false,
+    source: "none",
+    orderId: null,
+  });
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    if (user?.billingEmail) setEmail(user.billingEmail);
+  }, [user?.billingEmail]);
+
+  useEffect(() => {
+    if (!user) return;
+    void Promise.all([
+      api<{ entitlement: Entitlement }>("/api/me"),
+      api<{ invoices: Invoice[] }>("/api/billing/invoices"),
+    ])
+      .then(([me, list]) => {
+        setEntitlement(me.entitlement);
+        setInvoices(list.invoices);
+      })
+      .catch((cause: Error) => setLoadError(cause.message));
+  }, [user]);
+
   if (!user) return <Navigate to="/login?return=/billing" replace />;
   const member = isMember(entitlement);
   return (
@@ -31,6 +62,7 @@ export function BillingPage() {
             See memberships
           </ButtonLink>
         )}
+        {loadError ? <Notice>{loadError}</Notice> : null}
         {message ? <p>{message}</p> : null}
       </div>
       <h2>Invoices</h2>
@@ -46,7 +78,7 @@ export function BillingPage() {
             <Button
               onClick={() => {
                 const blob = new Blob(
-                  [`Bullwave Games prototype receipt\n${invoice.id}\n${invoice.amountInr} INR\nNot a live payment.`],
+                  [`Bullwave Games receipt\n${invoice.id}\n${invoice.amountInr} INR\nRazorpay test checkout.`],
                   { type: "text/plain" },
                 );
                 const url = URL.createObjectURL(blob);
@@ -65,7 +97,18 @@ export function BillingPage() {
       <Field label="Billing email" hint="This does not change your login email.">
         <TextInput value={email} onChange={(event) => setEmail(event.target.value)} />
       </Field>
-      <Button onClick={() => updateBillingEmail(email)}>Save billing email</Button>
+      <Button
+        onClick={() => {
+          void api("/api/me", {
+            method: "PATCH",
+            body: JSON.stringify({ billingEmail: email }),
+          })
+            .then(() => updateBillingEmail(email))
+            .catch((cause: Error) => setMessage(cause.message));
+        }}
+      >
+        Save billing email
+      </Button>
       {cancelOpen ? (
         <Dialog title="End renewal?" onClose={() => setCancelOpen(false)}>
           <p>Plan {entitlement.planId ? planById(entitlement.planId).name : ""}.</p>
@@ -75,9 +118,16 @@ export function BillingPage() {
             <Button
               variant="primary"
               onClick={() => {
-                const result = cancelRenewal();
-                setCancelOpen(false);
-                setMessage(result.ok ? `Active until ${result.until}` : result.error);
+                void api<{ entitlement: Entitlement }>("/api/billing/cancel", { method: "POST" })
+                  .then((result) => {
+                    setEntitlement(result.entitlement);
+                    setCancelOpen(false);
+                    setMessage(result.entitlement.accessEndDate ? `Active until ${result.entitlement.accessEndDate}` : "Cancelled.");
+                  })
+                  .catch((cause: Error) => {
+                    setCancelOpen(false);
+                    setMessage(cause.message);
+                  });
               }}
             >
               Confirm cancellation

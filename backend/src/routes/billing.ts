@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import { config } from "../config.js";
 import { requireUser } from "../plugins/auth.js";
 import {
   cancelRenewal,
@@ -25,6 +26,14 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
     const rows = await sql`SELECT id, name, monthly_paise, annual_paise, continue_cap, benefits FROM plans ORDER BY monthly_paise`;
     return { ok: true, plans: rows };
   });
+
+  app.get("/api/billing/config", async () => ({
+    ok: true,
+    configured: Boolean(config.razorpay.keyId && config.razorpay.keySecret),
+    testMode: (config.razorpay.keyId ?? "").startsWith("rzp_test_"),
+    keyId: config.razorpay.keyId || null,
+    autoRenewalEnabled: false,
+  }));
 
   app.post("/api/billing/subscribe", async (request) => {
     const user = requireUser(request);

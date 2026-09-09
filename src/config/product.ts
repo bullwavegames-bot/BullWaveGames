@@ -25,7 +25,7 @@ export const PRODUCT = {
   prototype: {
     dataLabel: "Sample prototype data",
     isLivePayment: false,
-    paymentProviderName: "Hosted checkout (prototype)",
+    paymentProviderName: "Razorpay (test mode)",
     autoRenewalEnabled: false,
     taxIncludedInDisplayedPrice: true,
     taxBreakdownAvailable: false,

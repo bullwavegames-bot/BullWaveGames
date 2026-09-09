@@ -7,7 +7,8 @@ export type MembershipStatus =
   | "pending"
   | "active"
   | "active_until"
-  | "expired";
+  | "expired"
+  | "past_due";
 export type PaymentStatus =
   | "creating"
   | "pending"

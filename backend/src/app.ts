@@ -33,13 +33,17 @@ export async function buildApp() {
     }
   });
 
-  await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, {
-    origin: (origin, cb) => {
-      if (!origin) return cb(null, true);
-      cb(null, config.corsOrigins.includes(origin));
-    },
+    origin: config.corsOrigins,
     credentials: true,
+    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Authorization", "Content-Type", "Accept", "X-Requested-With"],
+    maxAge: 86400,
+  });
+  await app.register(helmet, {
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginEmbedderPolicy: false,
   });
   await app.register(cookie);
   await app.register(rateLimit, { max: 200, timeWindow: "1 minute" });

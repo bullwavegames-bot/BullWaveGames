@@ -168,7 +168,7 @@ a:hover {
   gap: 8px;
 }
 
-.nav-desktop a,
+.nav-desktop > a,
 .nav-link {
   color: var(--mist);
   text-decoration: none;
@@ -180,13 +180,13 @@ a:hover {
   border-radius: 999px;
 }
 
-.nav-desktop a:hover,
+.nav-desktop > a:hover,
 .nav-link:hover,
 .footer a:hover {
   color: var(--gold-soft);
 }
 
-.nav-desktop a[aria-current="page"],
+.nav-desktop > a[aria-current="page"],
 .nav-link[aria-current="page"] {
   color: var(--gold-soft);
   background: rgba(67, 199, 232, 0.08);
@@ -1102,6 +1102,151 @@ h3 {
   border: 1px solid var(--line-strong);
   color: var(--reward);
   cursor: pointer;
+  font: 600 13px/1 var(--font-body);
+}
+
+.account-menu {
+  position: relative;
+}
+
+.account-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  z-index: 40;
+  width: min(304px, calc(100vw - 32px));
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 8px;
+}
+
+.account-dropdown-head {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 10px 12px;
+  align-items: start;
+  padding: 8px 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.account-dropdown-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  align-self: center;
+  background: var(--nav);
+  border: 1px solid var(--line-strong);
+  color: var(--reward);
+  font: 600 13px/1 var(--font-body);
+}
+
+.account-dropdown-meta {
+  min-width: 0;
+}
+
+.account-dropdown-name,
+.account-dropdown-email {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-dropdown-name {
+  color: var(--white);
+  font-weight: 600;
+}
+
+.account-dropdown-email {
+  color: var(--mist-dim);
+  font-size: 13px;
+}
+
+.account-tier {
+  justify-self: end;
+  margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  max-width: 96px;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.account-tier-free {
+  color: var(--mist-dim);
+  background: rgba(147, 164, 184, 0.14);
+}
+
+.account-tier-wave {
+  color: #61d6b0;
+  background: rgba(97, 214, 176, 0.14);
+}
+
+.account-tier-surge {
+  color: #43c7e8;
+  background: rgba(67, 199, 232, 0.14);
+}
+
+.account-tier-tide {
+  color: #d5aa50;
+  background: rgba(213, 170, 80, 0.16);
+}
+
+.account-dropdown-list {
+  display: grid;
+  padding: 6px 0;
+}
+
+.account-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--mist);
+  font: 500 14px/1.2 var(--font-body);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.account-dropdown-item:hover {
+  background: rgba(67, 199, 232, 0.1);
+  color: var(--white);
+}
+
+.account-dropdown-item.is-active {
+  color: #61d6b0;
+  background: rgba(97, 214, 176, 0.12);
+}
+
+.account-dropdown-foot {
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+}
+
+.account-dropdown-logout,
+.account-dropdown-logout:hover {
+  color: #f16f78;
+  background: transparent;
+}
+
+.account-dropdown-logout:hover {
+  background: rgba(241, 111, 120, 0.1);
 }
 
 .menu {
@@ -1446,12 +1591,12 @@ h3 {
 .game-card:hover .card-action span { transform: translate(3px,-3px); }
 .btn { transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease, border-color 180ms ease; }
 .btn-primary { background: var(--action-gradient); }
-.nav-desktop a.btn-primary { color: var(--ink); border-radius: 10px; min-height: 40px; padding: 8px 16px; }
+.nav-desktop > a.btn-primary { color: var(--ink); border-radius: 10px; min-height: 40px; padding: 8px 16px; }
 .btn-primary:hover:not(:disabled) { box-shadow: 0 0 26px rgba(67,199,232,.32); transform: translateY(-2px); }
 .btn-secondary:hover:not(:disabled), .btn-ghost:hover:not(:disabled) { background: rgba(67,199,232,.12); border-color: var(--gold-soft); }
 .btn:active:not(:disabled) { transform: translateY(1px); }
-.nav-desktop a:not(.btn) { transition: background 180ms ease, color 180ms ease; border-radius: 9px; }
-.nav-desktop a:not(.btn):hover { background: rgba(67,199,232,.08); }
+.nav-desktop > a:not(.btn) { transition: background 180ms ease, color 180ms ease; border-radius: 9px; }
+.nav-desktop > a:not(.btn):hover { background: rgba(67,199,232,.08); }
 .field input, .field select, .field textarea { transition: border-color 180ms ease, box-shadow 180ms ease; }
 .field :is(input,select,textarea):focus { border-color: var(--gold-soft); box-shadow: 0 0 0 4px rgba(67,199,232,.08); }
 .filters button, .chip-btn { transition: background 180ms ease, border-color 180ms ease; }

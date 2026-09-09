@@ -15,6 +15,35 @@ export async function findUserById(id: string): Promise<UserRow | null> {
   return rows[0] ?? null;
 }
 
+/** Mirror a Supabase Auth user into API tables so orders/memberships can use the same uuid. */
+export async function ensureFromSupabase(id: string, email: string): Promise<UserRow> {
+  const existing = await findUserById(id);
+  if (existing) {
+    if (email && existing.email !== email) {
+      await sql`UPDATE users SET email = ${email}, updated_at = now() WHERE id = ${id}`;
+      return (await findUserById(id)) ?? existing;
+    }
+    return existing;
+  }
+  const normalized = (email || `${id}@users.supabase`).trim().toLowerCase();
+  const rows = await sql<UserRow[]>`
+    INSERT INTO users ${sql({
+      id,
+      email: normalized,
+      billing_email: normalized,
+      password_hash: "supabase",
+      display_name: normalized.split("@")[0] || "Player",
+      email_verified_at: new Date(),
+      onboarding_complete: true,
+    })}
+    ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email, updated_at = now()
+    RETURNING *
+  `;
+  const { ensureMembership } = await import("./membership.js");
+  await ensureMembership(id);
+  return rows[0];
+}
+
 export async function touchLoginStreak(userId: string, dateKey: string): Promise<void> {
   const rows = await sql<{ last_login_date_key: string | null; current_streak: number; longest_streak: number }[]>`
     SELECT last_login_date_key::text, current_streak, longest_streak FROM login_streaks WHERE user_id = ${userId}

@@ -14,7 +14,11 @@ async function main() {
   }
   await migrate();
   await seed();
-  await connectRedis();
+  try {
+    await connectRedis();
+  } catch (error) {
+    logger.warn({ err: error }, "Redis is not available; rooms and rate limits are degraded");
+  }
   const app = await buildApp();
   const stopWorkers = startWorkers();
   await app.listen({ port: config.port, host: config.host });

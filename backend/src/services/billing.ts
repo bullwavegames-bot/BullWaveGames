@@ -75,6 +75,8 @@ export async function createSubscription(input: {
       notes: { userId: input.userId },
     });
     customerId = String(customer.id);
+    const { ensureMembership } = await import("./membership.js");
+    await ensureMembership(input.userId);
     await sql`UPDATE memberships SET razorpay_customer_id = ${customerId} WHERE user_id = ${input.userId}`;
   }
 
