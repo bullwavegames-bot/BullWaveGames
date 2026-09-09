@@ -281,8 +281,9 @@ export function ProfilePage() {
             <Button
               variant="primary"
               onClick={() => {
-                const result = updateProfile(name, avatar);
-                if (result.ok) setEditing(false);
+                void updateProfile(name, avatar).then((result) => {
+                  if (result.ok) setEditing(false);
+                });
               }}
             >
               Save

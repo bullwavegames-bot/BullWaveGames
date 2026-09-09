@@ -1,5 +1,5 @@
-import { Navigate, Route, Routes } from "react-router-dom";
-import type { ReactNode } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { useEffect, type ReactNode } from "react";
 import { AppShell } from "./components/Layout";
 import { LandingPage } from "./pages/Landing";
 import { CatalogPage } from "./pages/Catalog";
@@ -20,12 +20,55 @@ import {
   AdminMemberDetail,
   AdminMembers,
 } from "./pages/Admin";
-import { useApp } from "./state/AppState";
+import { useAuth } from "./state/AuthContext";
 
-function RequireUser({ children }: { children: ReactNode }) {
-  const { user } = useApp();
-  if (!user) return <Navigate to="/login" replace />;
+function LoadingScreen() {
+  return (
+    <div className="section wrap">
+      <p>Loading…</p>
+    </div>
+  );
+}
+
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { user, loading, session } = useAuth();
+  const location = useLocation();
+  if (loading) return <LoadingScreen />;
+  if (!session || !user) {
+    return <Navigate to={`/login?return=${encodeURIComponent(location.pathname + location.search)}`} replace />;
+  }
+  if (!user.emailVerified) return <Navigate to="/verify-email" replace />;
   return <>{children}</>;
+}
+
+function RequireOnboarded({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
+  return (
+    <RequireAuth>
+      {user && !user.onboardingComplete ? <Navigate to="/welcome" replace /> : children}
+    </RequireAuth>
+  );
+}
+
+function RequireAdmin({ children }: { children: ReactNode }) {
+  const { user, loading, refreshProfile } = useAuth();
+  useEffect(() => {
+    void refreshProfile();
+  }, [refreshProfile]);
+  if (loading) return <LoadingScreen />;
+  return (
+    <RequireOnboarded>
+      {user?.role !== "admin" ? (
+        <div className="section wrap">
+          <h1 className="display">Access denied</h1>
+          <p>Operations tools are limited to authorized studio roles.</p>
+        </div>
+      ) : (
+        children
+      )}
+    </RequireOnboarded>
+  );
 }
 
 export default function App() {
@@ -48,39 +91,81 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPage />} />
         <Route path="/reset-password" element={<ResetPage />} />
         <Route path="/verify-email" element={<VerifyPage />} />
-        <Route path="/welcome" element={<WelcomePage />} />
-        <Route path="/play" element={<ArcadeHomePage />} />
-        <Route path="/play/:slug" element={<GameSessionPage />} />
+        <Route
+          path="/welcome"
+          element={
+            <RequireAuth>
+              <WelcomePage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/play"
+          element={
+            <RequireOnboarded>
+              <ArcadeHomePage />
+            </RequireOnboarded>
+          }
+        />
+        <Route
+          path="/play/:slug"
+          element={
+            <RequireOnboarded>
+              <GameSessionPage />
+            </RequireOnboarded>
+          }
+        />
         <Route path="/challenges" element={<ChallengesPage />} />
         <Route
           path="/collection"
           element={
-            <RequireUser>
+            <RequireOnboarded>
               <CollectionPage />
-            </RequireUser>
+            </RequireOnboarded>
           }
         />
         <Route
           path="/profile"
           element={
-            <RequireUser>
+            <RequireOnboarded>
               <ProfilePage />
-            </RequireUser>
+            </RequireOnboarded>
           }
         />
-        <Route path="/membership/checkout" element={<CheckoutPage />} />
+        <Route
+          path="/membership/checkout"
+          element={
+            <RequireOnboarded>
+              <CheckoutPage />
+            </RequireOnboarded>
+          }
+        />
         <Route path="/membership/payment-return" element={<PaymentReturnPage />} />
-        <Route path="/billing" element={<BillingPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
+        <Route
+          path="/billing"
+          element={
+            <RequireOnboarded>
+              <BillingPage />
+            </RequireOnboarded>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <RequireOnboarded>
+              <SettingsPage />
+            </RequireOnboarded>
+          }
+        />
         <Route path="/help" element={<HelpPage />} />
         <Route path="/help/:slug" element={<HelpArticlePage />} />
-        <Route path="/admin" element={<AdminHome />} />
-        <Route path="/admin/members" element={<AdminMembers />} />
-        <Route path="/admin/members/:id" element={<AdminMemberDetail />} />
-        <Route path="/admin/games" element={<AdminGames />} />
-        <Route path="/admin/games/new" element={<AdminGameEdit />} />
-        <Route path="/admin/games/:id" element={<AdminGameEdit />} />
-        <Route path="/admin/content" element={<AdminContent />} />
+        <Route path="/admin" element={<RequireAdmin><AdminHome /></RequireAdmin>} />
+        <Route path="/admin/members" element={<RequireAdmin><AdminMembers /></RequireAdmin>} />
+        <Route path="/admin/members/:id" element={<RequireAdmin><AdminMemberDetail /></RequireAdmin>} />
+        <Route path="/admin/games" element={<RequireAdmin><AdminGames /></RequireAdmin>} />
+        <Route path="/admin/games/new" element={<RequireAdmin><AdminGameEdit /></RequireAdmin>} />
+        <Route path="/admin/games/:id" element={<RequireAdmin><AdminGameEdit /></RequireAdmin>} />
+        <Route path="/admin/content" element={<RequireAdmin><AdminContent /></RequireAdmin>} />
         <Route path="/500" element={<ServerErrorPage />} />
         <Route path="/maintenance" element={<MaintenancePage />} />
         <Route path="*" element={<NotFoundPage />} />

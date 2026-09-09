@@ -1,11 +1,15 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { PLANS } from "../config/product";
 import { GAMES } from "../data/games";
+import { supabase } from "../lib/supabaseClient";
+import type { ProfileRow } from "../lib/profile";
 import { emptyEntitlement } from "../lib/storage";
 import { useApp } from "../state/AppState";
 import { Button, Field, Notice, TextArea, TextInput } from "../components/ui";
 import type { Game, PlanId } from "../types";
+
+type AdminMember = Pick<ProfileRow, "id" | "email" | "display_name" | "role" | "created_at" | "onboarding_complete">;
 
 function Guard({ children }: { children: ReactNode }) {
   const { user } = useApp();
@@ -31,7 +35,6 @@ export function AdminHome() {
 
 function AdminHomeInner() {
   const { store, games } = useApp();
-  const members = store.users.filter((user) => user.role !== "admin" || true);
   const failed = store.orders.filter((order) => order.status === "declined" || order.status === "expired").length;
   return (
     <div className="section wrap">
@@ -78,16 +81,38 @@ export function AdminMembers() {
 function MembersInner() {
   const { store } = useApp();
   const [q, setQ] = useState("");
-  const rows = store.users.filter(
-    (user) => user.email.includes(q.toLowerCase()) || user.id.includes(q),
-  );
+  const [rows, setRows] = useState<AdminMember[]>([]);
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    void supabase
+      .from("profiles")
+      .select("id, email, display_name, role, created_at, onboarding_complete")
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error) setLoadError(error.message);
+        else setRows((data ?? []) as AdminMember[]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filtered = rows.filter((user) => {
+    const haystack = `${user.email ?? ""} ${user.display_name} ${user.id}`.toLowerCase();
+    return haystack.includes(q.toLowerCase());
+  });
+
   return (
     <div className="section wrap">
       <h1 className="display">Members</h1>
+      {loadError ? <Notice>{loadError}</Notice> : null}
       <Field label="Search email or member ID">
         <TextInput value={q} onChange={(event) => setQ(event.target.value)} />
       </Field>
-      <p className="meta">{rows.length} results</p>
+      <p className="meta">{filtered.length} results</p>
       <table className="table">
         <thead>
           <tr>
@@ -100,15 +125,15 @@ function MembersInner() {
           </tr>
         </thead>
         <tbody>
-          {rows.map((user) => {
+          {filtered.map((user) => {
             const ent = store.entitlementByUser[user.id] ?? emptyEntitlement();
             return (
               <tr key={user.id}>
-                <td>{user.email}</td>
+                <td>{user.email ?? user.display_name}</td>
                 <td>{ent.planId ?? "—"}</td>
                 <td>{ent.status}</td>
                 <td>{ent.accessEndDate?.slice(0, 10) ?? "—"}</td>
-                <td>{user.createdAt.slice(0, 10)}</td>
+                <td>{user.created_at.slice(0, 10)}</td>
                 <td>
                   <Link to={`/admin/members/${user.id}`}>View</Link>
                 </td>
@@ -132,17 +157,37 @@ export function AdminMemberDetail() {
 function MemberDetailInner() {
   const { id = "" } = useParams();
   const { store, adminGrant, adminRevoke } = useApp();
-  const user = store.users.find((item) => item.id === id);
+  const [user, setUser] = useState<AdminMember | null>(null);
+  const [missing, setMissing] = useState(false);
   const [plan, setPlan] = useState<PlanId>("wave");
   const [days, setDays] = useState(30);
   const [reason, setReason] = useState("");
-  if (!user) return <p>Missing member.</p>;
+
+  useEffect(() => {
+    let cancelled = false;
+    void supabase
+      .from("profiles")
+      .select("id, email, display_name, role, created_at, onboarding_complete")
+      .eq("id", id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return;
+        if (error || !data) setMissing(true);
+        else setUser(data as AdminMember);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  if (missing) return <p>Missing member.</p>;
+  if (!user) return <p>Loading member…</p>;
   const ent = store.entitlementByUser[user.id] ?? emptyEntitlement();
   return (
     <div className="section wrap">
       <Link to="/admin/members">Back</Link>
-      <h1 className="display">{user.email}</h1>
-      <p>Role {user.role}. Joined {user.createdAt.slice(0, 10)}.</p>
+      <h1 className="display">{user.email ?? user.display_name}</h1>
+      <p>Role {user.role}. Joined {user.created_at.slice(0, 10)}.</p>
       <div className="panel">
         <h3>Entitlement</h3>
         <p>

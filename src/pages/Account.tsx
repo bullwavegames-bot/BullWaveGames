@@ -96,7 +96,6 @@ export function SettingsPage() {
   const [next, setNext] = useState("");
   const [breakOpen, setBreakOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [authOk, setAuthOk] = useState(false);
   const [pwMsg, setPwMsg] = useState("");
   if (!user) return <Navigate to="/login?return=/settings" replace />;
   return (
@@ -137,8 +136,13 @@ export function SettingsPage() {
       </Field>
       <Button
         onClick={() => {
-          const result = changePassword(current, next);
-          setPwMsg(result.ok ? "Password saved." : result.error);
+          void changePassword(current, next).then((result) => {
+            setPwMsg(result.ok ? "Password saved." : result.error);
+            if (result.ok) {
+              setCurrent("");
+              setNext("");
+            }
+          });
         }}
       >
         Save password
@@ -167,29 +171,25 @@ export function SettingsPage() {
       ) : null}
       {deleteOpen ? (
         <Dialog title="Delete this account?" onClose={() => setDeleteOpen(false)}>
-          <p>Account {user.email}. Saved progress and collection on this prototype will be removed.</p>
+          <p>Account {user.email}. This signs you out of this browser. Full removal from Supabase Auth still needs the studio API.</p>
           <p>Deletion does not issue a refund. Recurring billing is not enabled in this configuration.</p>
-          <p>{PRODUCT.prototype.deletionImmediate ? "Deletion is immediate in this prototype." : "Deletion would be scheduled."}</p>
-          {!authOk ? (
-            <>
-              <Field label="Re-enter password">
-                <TextInput type="password" value={current} onChange={(event) => setCurrent(event.target.value)} />
-              </Field>
-              <Button onClick={() => setAuthOk(current === user.password)}>Confirm it’s you</Button>
-            </>
-          ) : (
-            <div className="actions">
-              <Button
-                variant="danger"
-                onClick={() => {
-                  deleteAccount();
-                }}
-              >
-                Delete account
-              </Button>
-              <Button onClick={() => setDeleteOpen(false)}>Keep account</Button>
-            </div>
-          )}
+          <Field label="Re-enter password">
+            <TextInput type="password" value={current} onChange={(event) => setCurrent(event.target.value)} />
+          </Field>
+          {pwMsg ? <p className="error">{pwMsg}</p> : null}
+          <div className="actions">
+            <Button
+              variant="danger"
+              onClick={() => {
+                void deleteAccount(current).then((result) => {
+                  if (!result.ok) setPwMsg(result.error);
+                });
+              }}
+            >
+              Sign out and close session
+            </Button>
+            <Button onClick={() => setDeleteOpen(false)}>Keep account</Button>
+          </div>
         </Dialog>
       ) : null}
     </div>

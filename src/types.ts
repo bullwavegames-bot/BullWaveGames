@@ -81,7 +81,6 @@ export interface UserProfile {
   id: string;
   email: string;
   billingEmail: string;
-  password: string;
   displayName: string;
   avatarId: string;
   emailVerified: boolean;

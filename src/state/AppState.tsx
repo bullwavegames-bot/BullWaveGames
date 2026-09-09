@@ -13,6 +13,7 @@ import { GAMES } from "../data/games";
 import { emptyEntitlement, loadStore, saveStore, type PersistedStore } from "../lib/storage";
 import { isMember } from "../lib/access";
 import { kolkataDateKey } from "../lib/time";
+import { useAuth } from "./AuthContext";
 import type {
   Entitlement,
   Game,
@@ -24,8 +25,6 @@ import type {
   PlanId,
   UserProfile,
 } from "../types";
-
-const AVATARS = ["kite", "lantern", "tide", "gharial", "rangoli", "fold"];
 
 type Settings = PersistedStore["settingsByUser"][string];
 
@@ -57,16 +56,9 @@ interface AppContextValue {
   toast: (text: string, tone?: "ok" | "err" | "info") => void;
   dismissToast: (id: string) => void;
   setSelectedPlan: (plan: PlanId | null) => void;
-  register: (input: { email: string; password: string; returnTo?: string }) => { ok: true } | { ok: false; error: string };
-  login: (email: string, password: string) => { ok: true } | { ok: false; error: string };
   logout: () => void;
-  requestReset: (email: string) => void;
-  resetPassword: (token: string, password: string) => { ok: true } | { ok: false; error: string };
-  verifyEmail: () => void;
-  resendVerify: () => { ok: true; cooldown: number } | { ok: false };
-  changeEmail: (email: string) => void;
-  completeOnboarding: (name: string, avatarId: string) => void;
-  updateProfile: (name: string, avatarId: string) => { ok: true } | { ok: false; error: string };
+  completeOnboarding: (name: string, avatarId: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  updateProfile: (name: string, avatarId: string) => Promise<{ ok: true } | { ok: false; error: string }>;
   patchSettings: (patch: Partial<Settings>) => void;
   consumeSession: () => boolean;
   recordResult: (result: { slug: string; score: number; stars: number; metric?: string; save?: GameSave }) => void;
@@ -79,8 +71,8 @@ interface AppContextValue {
   sendTicket: (ticket: { name: string; email: string; topic: string; message: string; paymentRef?: string }) => string;
   setBreakReminder: (hours: number, label: string) => { ok: true } | { ok: false; error: string };
   clearBreakReminder: () => void;
-  changePassword: (current: string, next: string) => { ok: true } | { ok: false; error: string };
-  deleteAccount: () => { ok: true } | { ok: false; error: string };
+  changePassword: (current: string, next: string) => Promise<{ ok: true } | { ok: false; error: string }>;
+  deleteAccount: (password: string) => Promise<{ ok: true } | { ok: false; error: string }>;
   enterChallenge: () => void;
   submitChallenge: (score: number) => void;
   adminGrant: (userId: string, planId: PlanId, days: number, reason: string) => { ok: true } | { ok: false; error: string };
@@ -91,47 +83,21 @@ interface AppContextValue {
   saveFor: (slug: string) => GameSave | undefined;
   owned: string[];
   invoices: Invoice[];
-  pendingResetEmail: string | null;
-  verifyCooldown: number;
   lastOrderId: string | null;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
 
-function seedAdmin(store: PersistedStore): PersistedStore {
-  if (store.users.some((user) => user.email === PRODUCT.prototype.adminEmail)) return store;
-  const admin: UserProfile = {
-    id: "user-admin-prototype",
-    email: PRODUCT.prototype.adminEmail,
-    billingEmail: PRODUCT.prototype.adminEmail,
-    password: PRODUCT.prototype.adminPassword,
-    displayName: "Studio ops",
-    avatarId: "lantern",
-    emailVerified: true,
-    role: "admin",
-    createdAt: "2026-09-08T07:36:18Z",
-    onboardingComplete: true,
-  };
-  return { ...store, users: [...store.users, admin] };
-}
-
 export function AppStateProvider({ children }: { children: ReactNode }) {
-  const [store, setStore] = useState<PersistedStore>(() => seedAdmin(loadStore()));
+  const auth = useAuth();
+  const [store, setStore] = useState<PersistedStore>(() => loadStore());
   const [introDone, setIntro] = useState(() => sessionStorage.getItem("bw.intro") === "1");
   const [toasts, setToasts] = useState<AppContextValue["toasts"]>([]);
-  const [pendingResetEmail, setPendingResetEmail] = useState<string | null>(null);
-  const [verifyCooldown, setVerifyCooldown] = useState(0);
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     saveStore(store);
   }, [store]);
-
-  useEffect(() => {
-    if (verifyCooldown <= 0) return;
-    const timer = window.setTimeout(() => setVerifyCooldown((value) => value - 1), 1000);
-    return () => window.clearTimeout(timer);
-  }, [verifyCooldown]);
 
   const patch = useCallback((updater: (current: PersistedStore) => PersistedStore) => {
     setStore((current) => updater(current));
@@ -143,7 +109,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     window.setTimeout(() => setToasts((current) => current.filter((item) => item.id !== id)), 4200);
   }, []);
 
-  const user = store.users.find((item) => item.id === store.sessionUserId) ?? null;
+  const user = auth.user
+    ? { ...auth.user, billingEmail: store.billingEmails[auth.user.id] ?? auth.user.billingEmail }
+    : null;
   const identityKey = user?.id ?? `guest:${store.guestKey}`;
   const entitlement = store.entitlementByUser[identityKey] ?? emptyEntitlement();
   const settings = store.settingsByUser[identityKey] ?? defaultSettings();
@@ -166,7 +134,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       age: store.age,
       guestKey: store.guestKey,
       selectedPlan: store.selectedPlan,
-      avatars: AVATARS,
+      avatars: [...auth.avatars],
       freeRemaining: isMember(entitlement) ? PRODUCT.prototype.freeSessionAllowance : freeRemaining,
       identityKey,
       setIntroDone: () => {
@@ -177,97 +145,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       toast,
       dismissToast: (id) => setToasts((current) => current.filter((item) => item.id !== id)),
       setSelectedPlan: (plan) => patch((current) => ({ ...current, selectedPlan: plan })),
-      register: ({ email, password }) => {
-        const normalized = email.trim().toLowerCase();
-        if (store.users.some((item) => item.email === normalized)) {
-          return { ok: false, error: "An account with this email already exists. Log in instead." };
-        }
-        const profile: UserProfile = {
-          id: crypto.randomUUID(),
-          email: normalized,
-          billingEmail: normalized,
-          password,
-          displayName: normalized.split("@")[0] ?? "Player",
-          avatarId: "lantern",
-          emailVerified: false,
-          role: normalized === PRODUCT.prototype.adminEmail ? "admin" : "player",
-          createdAt: new Date().toISOString(),
-          onboardingComplete: false,
-        };
-        patch((current) => ({
-          ...current,
-          users: [...current.users, profile],
-          sessionUserId: profile.id,
-          ownedCosmetics: {
-            ...current.ownedCosmetics,
-            [profile.id]: ["frame-standard"],
-          },
-        }));
-        return { ok: true };
+      logout: () => {
+        void auth.signOut();
       },
-      login: (email, password) => {
-        const found = store.users.find(
-          (item) => item.email === email.trim().toLowerCase() && item.password === password,
-        );
-        if (!found) return { ok: false, error: "Email or password is incorrect." };
-        patch((current) => ({ ...current, sessionUserId: found.id }));
-        return { ok: true };
-      },
-      logout: () => patch((current) => ({ ...current, sessionUserId: null })),
-      requestReset: (email) => setPendingResetEmail(email.trim().toLowerCase()),
-      resetPassword: (_token, password) => {
-        if (!pendingResetEmail) return { ok: false, error: "This reset link is invalid or has expired." };
-        const found = store.users.find((item) => item.email === pendingResetEmail);
-        if (!found) return { ok: false, error: "This reset link is invalid or has expired." };
-        patch((current) => ({
-          ...current,
-          users: current.users.map((item) => (item.email === pendingResetEmail ? { ...item, password } : item)),
-        }));
-        return { ok: true };
-      },
-      verifyEmail: () => {
-        if (!user) return;
-        patch((current) => ({
-          ...current,
-          users: current.users.map((item) => (item.id === user.id ? { ...item, emailVerified: true } : item)),
-        }));
-      },
-      resendVerify: () => {
-        if (verifyCooldown > 0) return { ok: false };
-        setVerifyCooldown(30);
-        return { ok: true, cooldown: 30 };
-      },
-      changeEmail: (email) => {
-        if (!user) return;
-        patch((current) => ({
-          ...current,
-          users: current.users.map((item) =>
-            item.id === user.id ? { ...item, email: email.toLowerCase(), emailVerified: false } : item,
-          ),
-        }));
-      },
-      completeOnboarding: (name, avatarId) => {
-        if (!user) return;
-        patch((current) => ({
-          ...current,
-          users: current.users.map((item) =>
-            item.id === user.id
-              ? { ...item, displayName: name || item.displayName, avatarId, onboardingComplete: true }
-              : item,
-          ),
-        }));
-      },
-      updateProfile: (name, avatarId) => {
-        if (!user) return { ok: false, error: "Sign in to edit your profile." };
-        if (name.trim().length < 2) return { ok: false, error: "Use at least two characters." };
-        patch((current) => ({
-          ...current,
-          users: current.users.map((item) =>
-            item.id === user.id ? { ...item, displayName: name.trim(), avatarId } : item,
-          ),
-        }));
-        toast("Profile saved.", "ok");
-        return { ok: true };
+      completeOnboarding: (name, avatarId) => auth.completeOnboarding(name, avatarId),
+      updateProfile: async (name, avatarId) => {
+        const result = await auth.updateProfile(name, avatarId);
+        if (result.ok) toast("Profile saved.", "ok");
+        return result;
       },
       patchSettings: (next) => {
         patch((current) => ({
@@ -450,7 +335,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         if (!user) return;
         patch((current) => ({
           ...current,
-          users: current.users.map((item) => (item.id === user.id ? { ...item, billingEmail: email.toLowerCase() } : item)),
+          billingEmails: { ...current.billingEmails, [user.id]: email.toLowerCase() },
         }));
         toast("Billing email updated. Login email is unchanged.", "ok");
       },
@@ -487,23 +372,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             [identityKey]: { ...settings, reminderEnabled: false },
           },
         })),
-      changePassword: (currentPassword, next) => {
-        if (!user || user.password !== currentPassword) return { ok: false, error: "Current password is incorrect." };
-        patch((current) => ({
-          ...current,
-          users: current.users.map((item) => (item.id === user.id ? { ...item, password: next } : item)),
-        }));
-        return { ok: true };
-      },
-      deleteAccount: () => {
-        if (!user) return { ok: false, error: "Sign in first." };
-        patch((current) => ({
-          ...current,
-          users: current.users.filter((item) => item.id !== user.id),
-          sessionUserId: null,
-        }));
-        return { ok: true };
-      },
+      changePassword: (currentPassword, next) => auth.changePassword(currentPassword, next),
+      deleteAccount: (password) => auth.deleteAccount(password),
       enterChallenge: () =>
         patch((current) => ({
           ...current,
@@ -575,8 +445,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       saveFor: (slug) => store.saves[`${identityKey}:${slug}`],
       owned: store.ownedCosmetics[identityKey] ?? [],
       invoices: store.invoices.filter((invoice) => invoice.orderId && store.orders.find((order) => order.id === invoice.orderId && order.userId === user?.id)),
-      pendingResetEmail,
-      verifyCooldown,
       lastOrderId,
     };
   }, [
@@ -593,9 +461,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     used,
     patch,
     toast,
-    pendingResetEmail,
-    verifyCooldown,
     lastOrderId,
+    auth,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

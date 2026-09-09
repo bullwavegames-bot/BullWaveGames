@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { allowlistReturn, checkoutPath, planFromQuery } from "../lib/access";
 import { useApp } from "../state/AppState";
+import { useAuth } from "../state/AuthContext";
 import { Button, ButtonLink, Field, Notice, TextInput } from "../components/ui";
 import { PRODUCT } from "../config/product";
 
@@ -12,7 +13,8 @@ function validPassword(value: string) {
 }
 
 export function RegisterPage() {
-  const { register, setSelectedPlan, user } = useApp();
+  const { setSelectedPlan } = useApp();
+  const { signUp, user, loading, configured } = useAuth();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const plan = planFromQuery(params.get("plan"));
@@ -24,20 +26,22 @@ export function RegisterPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const submit = () => {
+  const submit = async () => {
     setError("");
     if (!email.includes("@")) return setError("Enter a valid email.");
     if (!validPassword(password)) return setError(PASSWORD_HINT);
     if (!terms) return setError("Agree to the Terms to continue.");
     setBusy(true);
-    const result = register({ email, password });
+    const result = await signUp(email, password);
     setBusy(false);
     if (!result.ok) return setError(result.error);
     if (plan) setSelectedPlan(plan);
-    navigate("/welcome?return=" + encodeURIComponent(returnTo));
+    if (result.needsConfirm) navigate("/verify-email");
+    else navigate("/welcome?return=" + encodeURIComponent(returnTo));
   };
 
-  if (user) navigate(returnTo);
+  if (loading) return <p className="section wrap">Loading…</p>;
+  if (user?.emailVerified) return <Navigate to={user.onboardingComplete ? returnTo : "/welcome"} replace />;
 
   return (
     <div className="auth-layout">
@@ -45,6 +49,9 @@ export function RegisterPage() {
       <div className="auth-form">
         <h1 className="display">Create account</h1>
         <p>Your game or membership choice is kept. Payment is not asked here.</p>
+        {configured ? null : (
+          <Notice>Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to a root .env file.</Notice>
+        )}
         {plan ? <Notice>Selected plan: {plan}. You will return to checkout after welcome.</Notice> : null}
         <Field label="Email">
           <TextInput type="email" value={email} autoComplete="email" onChange={(event) => setEmail(event.target.value)} />
@@ -69,7 +76,7 @@ export function RegisterPage() {
         </label>
         {error ? <p className="error">{error}</p> : null}
         <div className="actions">
-          <Button variant="primary" disabled={busy} onClick={submit}>
+          <Button variant="primary" disabled={busy} onClick={() => void submit()}>
             {busy ? "Creating…" : "Create account"}
           </Button>
           <ButtonLink to={`/login?return=${encodeURIComponent(returnTo)}`}>Log in</ButtonLink>
@@ -81,7 +88,7 @@ export function RegisterPage() {
 }
 
 export function LoginPage() {
-  const { login } = useApp();
+  const { signIn, user, loading, refreshProfile, configured } = useAuth();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const returnTo = allowlistReturn(params.get("return"), "/play");
@@ -89,12 +96,34 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    setError("");
+    setBusy(true);
+    const result = await signIn(email, password);
+    if (!result.ok) {
+      setBusy(false);
+      setError(result.error);
+      return;
+    }
+    const profile = await refreshProfile();
+    setBusy(false);
+    if (!profile?.onboarding_complete) navigate("/welcome?return=" + encodeURIComponent(returnTo));
+    else navigate(returnTo);
+  };
+
+  if (loading) return <p className="section wrap">Loading…</p>;
+  if (user?.emailVerified && user.onboardingComplete) return <Navigate to={returnTo} replace />;
 
   return (
     <div className="auth-layout">
       <div className="auth-art" aria-hidden="true" />
       <div className="auth-form">
         <h1 className="display">Log in</h1>
+        {configured ? null : (
+          <Notice>Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to a root .env file.</Notice>
+        )}
         <Field label="Email">
           <TextInput type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
         </Field>
@@ -108,15 +137,8 @@ export function LoginPage() {
         </Field>
         {error ? <p className="error">{error}</p> : null}
         <div className="actions">
-          <Button
-            variant="primary"
-            onClick={() => {
-              const result = login(email, password);
-              if (!result.ok) setError("Email or password is incorrect.");
-              else navigate(returnTo);
-            }}
-          >
-            Log in
+          <Button variant="primary" disabled={busy} onClick={() => void submit()}>
+            {busy ? "Signing in…" : "Log in"}
           </Button>
           <ButtonLink to="/register">Create account</ButtonLink>
         </div>
@@ -129,10 +151,11 @@ export function LoginPage() {
 }
 
 export function ForgotPage() {
-  const { requestReset } = useApp();
+  const { requestReset } = useAuth();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   return (
     <div className="section wrap article">
       <h1 className="display">Forgot password</h1>
@@ -145,7 +168,7 @@ export function ForgotPage() {
             disabled={busy}
             onClick={() => {
               setBusy(true);
-              window.setTimeout(() => setBusy(false), 15000);
+              void requestReset(email).finally(() => window.setTimeout(() => setBusy(false), 15000));
             }}
           >
             Resend
@@ -156,12 +179,18 @@ export function ForgotPage() {
           <Field label="Email">
             <TextInput type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
           </Field>
+          {error ? <p className="error">{error}</p> : null}
           <Button
             variant="primary"
+            disabled={busy}
             onClick={() => {
               if (!email.includes("@")) return;
-              requestReset(email);
-              setSent(true);
+              setBusy(true);
+              void requestReset(email).then((result) => {
+                setBusy(false);
+                if (!result.ok) setError(result.error);
+                else setSent(true);
+              });
             }}
           >
             Send reset link
@@ -173,20 +202,34 @@ export function ForgotPage() {
 }
 
 export function ResetPage() {
-  const { resetPassword } = useApp();
+  const { updatePassword, session, loading } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const token = params.get("token") ?? "prototype";
   const expired = params.get("expired") === "1";
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  if (expired || token === "invalid") {
+  if (loading) return <p className="section wrap">Loading…</p>;
+
+  if (expired) {
     return (
       <div className="section wrap">
         <h1 className="display">This reset link is no longer valid.</h1>
+        <ButtonLink to="/forgot-password" variant="primary">
+          Request a new link
+        </ButtonLink>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="section wrap">
+        <h1 className="display">Open the link from your email.</h1>
+        <p>The reset page needs the signed link Supabase sent. Request a new one if this tab was opened directly.</p>
         <ButtonLink to="/forgot-password" variant="primary">
           Request a new link
         </ButtonLink>
@@ -209,12 +252,16 @@ export function ResetPage() {
       {error ? <p className="error">{error}</p> : null}
       <Button
         variant="primary"
+        disabled={busy}
         onClick={() => {
           if (password !== confirm) return setError("Passwords do not match.");
           if (!validPassword(password)) return setError(PASSWORD_HINT);
-          const result = resetPassword(token, password);
-          if (!result.ok) return setError(result.error);
-          navigate("/login");
+          setBusy(true);
+          void updatePassword(password).then((result) => {
+            setBusy(false);
+            if (!result.ok) return setError(result.error);
+            navigate("/login");
+          });
         }}
       >
         Save new password
@@ -224,36 +271,88 @@ export function ResetPage() {
 }
 
 export function VerifyPage() {
-  const { user, verifyEmail, resendVerify, changeEmail, verifyCooldown } = useApp();
+  const { user, session, resendVerify, changeEmail } = useAuth();
   const [email, setEmail] = useState(user?.email ?? "");
+  const [verifyCooldown, setVerifyCooldown] = useState(0);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (user?.email) setEmail(user.email);
+  }, [user?.email]);
+
+  useEffect(() => {
+    if (verifyCooldown <= 0) return;
+    const timer = window.setTimeout(() => setVerifyCooldown((value) => value - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [verifyCooldown]);
+
   const masked = useMemo(() => {
-    if (!user) return "your email";
-    const [name, domain] = user.email.split("@");
+    const value = email || user?.email || "";
+    if (!value.includes("@")) return "your email";
+    const [name, domain] = value.split("@");
     return `${name.slice(0, 2)}•••@${domain}`;
-  }, [user]);
+  }, [email, user?.email]);
+
+  const confirmed = Boolean(user?.emailVerified);
+
   return (
     <div className="section wrap article">
-      <h1 className="display">Verify email</h1>
-      <p>We sent a link to {masked}. Verification is not required to play today’s free three.</p>
+      <h1 className="display">{confirmed ? "Email confirmed" : "Verify email"}</h1>
+      {confirmed ? (
+        <>
+          <Notice>Your email is confirmed. Continue to set your name, then play.</Notice>
+          <ButtonLink to="/welcome" variant="primary">
+            Continue
+          </ButtonLink>
+        </>
+      ) : (
+        <>
+          <p>We sent a link to {masked}. Open it in this browser. You cannot enter the arcade until the address is confirmed.</p>
+          {session ? <p className="meta">Signed in — waiting for confirmation.</p> : <p className="meta">After you click the email link, this page will update.</p>}
+        </>
+      )}
+      {message ? <p>{message}</p> : null}
+      {error ? <p className="error">{error}</p> : null}
       <div className="actions">
-        <Button variant="primary" onClick={() => verifyEmail()}>
-          Continue to arcade
-        </Button>
-        <Button disabled={verifyCooldown > 0} onClick={() => resendVerify()}>
+        <Button
+          disabled={verifyCooldown > 0}
+          onClick={() => {
+            if (!email.includes("@")) return setError("Enter the email you registered with.");
+            setError("");
+            void resendVerify(email).then((result) => {
+              if (!result.ok) setError(result.error);
+              else {
+                setMessage("If that address is on file, a new link is on the way.");
+                setVerifyCooldown(30);
+              }
+            });
+          }}
+        >
           {verifyCooldown > 0 ? `Resend in ${verifyCooldown}s` : "Resend"}
         </Button>
       </div>
       <Field label="Change email">
         <TextInput value={email} onChange={(event) => setEmail(event.target.value)} />
       </Field>
-      <Button onClick={() => changeEmail(email)}>Update email</Button>
-      <ButtonLink to="/play">Skip for now</ButtonLink>
+      <Button
+        onClick={() => {
+          setError("");
+          void changeEmail(email).then((result) => {
+            if (!result.ok) setError(result.error);
+            else setMessage("Check the new address for a confirmation link.");
+          });
+        }}
+      >
+        Update email
+      </Button>
     </div>
   );
 }
 
 export function WelcomePage() {
-  const { completeOnboarding, avatars, user, setSelectedPlan } = useApp();
+  const { completeOnboarding, avatars, user } = useAuth();
+  const { setSelectedPlan } = useApp();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const returnTo = allowlistReturn(params.get("return"), "/play");
@@ -261,10 +360,19 @@ export function WelcomePage() {
   const [name, setName] = useState(user?.displayName ?? "");
   const [avatar, setAvatar] = useState(user?.avatarId ?? "lantern");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const finish = () => {
+  useEffect(() => {
+    if (user?.displayName) setName(user.displayName);
+    if (user?.avatarId) setAvatar(user.avatarId);
+  }, [user?.displayName, user?.avatarId]);
+
+  const finish = async () => {
     if (name.trim() && name.trim().length < 2) return setError("Use at least two characters, or leave the default.");
-    completeOnboarding(name.trim() || user?.displayName || "Player", avatar);
+    setBusy(true);
+    const result = await completeOnboarding(name.trim() || user?.displayName || "Player", avatar);
+    setBusy(false);
+    if (!result.ok) return setError(result.error);
     const plan = planFromQuery(params.get("plan"));
     if (plan) setSelectedPlan(plan);
     navigate(returnTo);
@@ -272,9 +380,7 @@ export function WelcomePage() {
 
   return (
     <div className="section wrap">
-      <p className="kicker">
-        Step {step} of 3
-      </p>
+      <p className="kicker">Step {step} of 3</p>
       {step === 1 ? (
         <>
           <img src="/covers/kite-line-cover.png" alt="Paper kite over a coastal city." style={{ borderRadius: 18, maxHeight: 280, objectFit: "cover", width: "100%" }} />
@@ -307,6 +413,7 @@ export function WelcomePage() {
           </div>
         </>
       ) : null}
+      {error && step !== 3 ? <p className="error">{error}</p> : null}
       <div className="actions">
         {step > 1 ? <Button onClick={() => setStep((value) => value - 1)}>Back</Button> : null}
         {step < 3 ? (
@@ -315,10 +422,12 @@ export function WelcomePage() {
           </Button>
         ) : (
           <>
-            <Button variant="primary" onClick={finish}>
-              Enter the arcade
+            <Button variant="primary" disabled={busy} onClick={() => void finish()}>
+              {busy ? "Saving…" : "Enter the arcade"}
             </Button>
-            <Button onClick={finish}>Skip cosmetics</Button>
+            <Button disabled={busy} onClick={() => void finish()}>
+              Skip cosmetics
+            </Button>
           </>
         )}
       </div>

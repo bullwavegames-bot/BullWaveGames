@@ -30,13 +30,13 @@ export const PRODUCT = {
     taxIncludedInDisplayedPrice: true,
     taxBreakdownAvailable: false,
     googleSignInConfigured: false,
-    emailVerificationRequiredForPlay: false,
+    emailVerificationRequiredForPlay: true,
     crossDeviceReminders: false,
     deletionImmediate: true,
     refundProcessingNote:
       "Refund eligibility follows the approved refund policy and payment-provider configuration. This prototype does not process live payments.",
+    /** Historical prototype login. Do not seed this account. Promote admins in Supabase SQL. */
     adminEmail: "operations@bullwavegames.com",
-    adminPassword: "studio-ops-prototype",
     sampleBillingDate: "2026-10-08",
     freeDailyGameCount: 3,
     freeSessionAllowance: 3,

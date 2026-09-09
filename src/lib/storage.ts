@@ -1,8 +1,6 @@
 const KEY = "bullwave.v1";
 
 export interface PersistedStore {
-  users: import("../types").UserProfile[];
-  sessionUserId: string | null;
   guestKey: string;
   age: "unknown" | "adult" | "under18";
   entitlementByUser: Record<string, import("../types").Entitlement>;
@@ -33,12 +31,11 @@ export interface PersistedStore {
   contentNotes: { id: string; title: string; type: string; status: string; updated: string; body: string }[];
   breakReminder: { until: number; label: string } | null;
   selectedPlan: import("../types").PlanId | null;
+  billingEmails: Record<string, string>;
 }
 
 function empty(): PersistedStore {
   return {
-    users: [],
-    sessionUserId: null,
     guestKey: crypto.randomUUID(),
     age: "unknown",
     entitlementByUser: {},
@@ -76,14 +73,22 @@ function empty(): PersistedStore {
     ],
     breakReminder: null,
     selectedPlan: null,
+    billingEmails: {},
   };
+}
+
+function stripSecrets(parsed: Record<string, unknown>): PersistedStore {
+  const { users: _users, sessionUserId: _sessionUserId, ...rest } = parsed;
+  return { ...empty(), ...(rest as Partial<PersistedStore>) };
 }
 
 export function loadStore(): PersistedStore {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return empty();
-    return { ...empty(), ...JSON.parse(raw) };
+    const store = stripSecrets(JSON.parse(raw) as Record<string, unknown>);
+    saveStore(store);
+    return store;
   } catch {
     return empty();
   }
