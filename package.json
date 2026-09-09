@@ -5,12 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "backend": "npm run dev --prefix backend",
+    "backend:migrate": "npm run migrate --prefix backend",
+    "backend:seed": "npm run seed --prefix backend",
+    "backend:test": "npm test --prefix backend",
     "test:games": "node tests/run.mjs && node tests/rooms.test.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "chess.js": "^1.4.0",
+    "framer-motion": "^13.2.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.8.2",

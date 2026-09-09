@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
+import { useReducedMotion } from "framer-motion";
 import type { Game } from "../types";
 import { Badge } from "./ui";
+import { GamePreview } from "./GamePreview";
 
 export function GameCard({
   game,
@@ -11,11 +13,23 @@ export function GameCard({
   availability: "Free today" | "Members";
   locked?: boolean;
 }) {
+  const reduce = useReducedMotion();
   return (
-    <Link className="card game-card" to={`/games/${game.slug}`}>
+    <Link className={`card game-card ${reduce ? "no-flip" : ""}`} to={`/games/${game.slug}`}>
       <div className="art">
-        <img src={game.cover} alt={game.coverAlt} />
-        {game.isNew ? <span className="art-badge"><Badge tone="new">New</Badge></span> : null}
+        <div className="art-flip">
+          <div className="art-face art-front">
+            <img src={game.cover} alt={game.coverAlt} />
+          </div>
+          <div className="art-face art-back">
+            <GamePreview game={game} />
+          </div>
+        </div>
+        {game.isNew ? (
+          <span className="art-badge">
+            <Badge tone="new">New</Badge>
+          </span>
+        ) : null}
         {locked ? (
           <span className="lock" aria-label="Members">
             ⌁
@@ -32,7 +46,9 @@ export function GameCard({
         <div className="meta">
           {game.genre} · {game.sessionMinutes} min
         </div>
-        <span className="card-action">Game details <span aria-hidden="true">↗</span></span>
+        <span className="card-action">
+          Game details <span aria-hidden="true">↗</span>
+        </span>
       </div>
     </Link>
   );
