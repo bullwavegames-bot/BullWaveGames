@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { GAMES } from "../data/games";
-import { isFreeToday } from "../lib/time";
 import { useApp } from "../state/AppState";
 import { GameCard } from "../components/GameCard";
 import { PageIntro } from "../components/PageIntro";
@@ -18,7 +17,6 @@ export function CatalogPage() {
   const [sheet, setSheet] = useState(false);
   const q = params.get("q") ?? "";
   const genre = (params.get("genre") as Genre | "All") || "All";
-  const availability = params.get("availability") ?? "all";
   const sort = params.get("sort") ?? "new";
 
   const set = (key: string, value: string) => {
@@ -32,13 +30,11 @@ export function CatalogPage() {
     let list = [...(games.length ? games : GAMES)].filter((game) => game.published);
     if (q) list = list.filter((game) => game.title.toLowerCase().includes(q.toLowerCase()));
     if (genre !== "All") list = list.filter((game) => game.genre === genre);
-    if (availability === "free-today") list = list.filter((game) => isFreeToday(game.slug));
-    if (availability === "members") list = list.filter((game) => !isFreeToday(game.slug));
     if (sort === "short") list.sort((a, b) => a.sessionMinutes - b.sessionMinutes);
     if (sort === "popular") list.sort((a, b) => a.title.localeCompare(b.title));
     if (sort === "new") list.sort((a, b) => a.title.localeCompare(b.title));
     return list;
-  }, [games, q, genre, availability, sort]);
+  }, [games, q, genre, sort]);
 
   const filters = (
     <>
@@ -50,17 +46,6 @@ export function CatalogPage() {
         {GENRES.map((item) => (
           <button key={item} type="button" aria-pressed={(genre || "All") === item} onClick={() => set("genre", item)}>
             {item}
-          </button>
-        ))}
-      </div>
-      <div className="filters" aria-label="Availability">
-        {[
-          ["all", "All games"],
-          ["free-today", "Free today"],
-          ["members", "Members"],
-        ].map(([value, label]) => (
-          <button key={value} type="button" aria-pressed={availability === value || (value === "all" && !params.get("availability"))} onClick={() => set("availability", value)}>
-            {label}
           </button>
         ))}
       </div>
@@ -95,7 +80,6 @@ export function CatalogPage() {
         </div>
         <p className="meta">
           {results.length} game{results.length === 1 ? "" : "s"}
-          {availability === "free-today" ? " · Free today" : ""}
           {genre !== "All" ? ` · ${genre}` : ""}
         </p>
         {error ? <ErrorPanel message="We couldn’t load your games. Try again." onRetry={() => setError(false)} /> : null}
@@ -117,12 +101,7 @@ export function CatalogPage() {
         ) : (
           <div className="grid-3" style={{ marginTop: 20 }}>
             {results.map((game) => (
-              <GameCard
-                key={game.slug}
-                game={game}
-                availability={isFreeToday(game.slug) ? "Free today" : "Members"}
-                locked={!isFreeToday(game.slug)}
-              />
+              <GameCard key={game.slug} game={game} />
             ))}
           </div>
         )}

@@ -285,7 +285,7 @@ export function WelcomePage() {
       {step === 2 ? (
         <>
           <h1 className="display">Free stays free.</h1>
-          <p>Today’s three games remain available with a session allowance. Membership unlocks the rest of the studio — Wave {PRODUCT.prototype ? "from ₹399 / month" : ""}.</p>
+          <p>Every published game is free to play. Membership adds optional cosmetics and convenience perks — Wave {PRODUCT.prototype ? "from ₹399 / month" : ""}.</p>
         </>
       ) : null}
       {step === 3 ? (

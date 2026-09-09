@@ -39,8 +39,8 @@ export function TermsPage() {
   return (
     <PolicyLayout title="Terms and Conditions" id="terms">
       <h2 id="terms-eligibility">Eligibility, accounts, and play</h2>
-      <p>Bullwave Games is an India-first browser arcade. Accounts store progress, collection items, and billing email. Guest play of the daily free rotation is allowed subject to a session allowance.</p>
-      <p>Permitted use is personal, non-commercial play of original browser games. Membership unlocks catalog access as configured. Games may be unavailable for maintenance.</p>
+      <p>Bullwave Games is an India-first browser arcade. Accounts store progress, collection items, and billing email. Guests may play every published game without a membership or daily session allowance.</p>
+      <p>Permitted use is personal, non-commercial play of original browser games. Membership provides optional perks as configured. Games may be unavailable for maintenance.</p>
       <p>Scores, stars, cosmetics, and personal bests have no monetary value and cannot be withdrawn.</p>
     </PolicyLayout>
   );
@@ -75,8 +75,8 @@ export function ShippingPage() {
   return (
     <PolicyLayout title="Shipping and Delivery Policy" id="ship">
       <h2 id="ship-eligibility">Digital delivery</h2>
-      <p>Membership is digital access to browser games. There is no physical shipment and no courier.</p>
-      <p>Access is delivered by unlocking the catalog after verified payment status, not by dispatching goods.</p>
+      <p>Membership is a digital service for optional browser-game perks. There is no physical shipment and no courier.</p>
+      <p>Member perks activate after verified payment status and are delivered digitally, without dispatching goods.</p>
     </PolicyLayout>
   );
 }

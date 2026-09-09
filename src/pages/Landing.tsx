@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { formatInr, PLANS } from "../config/product";
-import { todaysRotation } from "../lib/time";
 import { useApp } from "../state/AppState";
 import { GameCard } from "../components/GameCard";
 import { COLLECTION } from "../data/collection";
@@ -16,12 +15,12 @@ const categories = [
   { name: "Multiplayer Party", subtitle: "Better with friends", symbol: "✦", color: "#f16f78", games: ["Draw & Guess", "Multiplayer Ludo Rooms", "Trivia Battle (1v1 or Teams)"] },
 ];
 const features = [
-  ["Access to core games", "Yes", "Yes", "Yes", "Yes"],
+  ["All published games", "Yes", "Yes", "Yes", "Yes"],
   ["Ads", "Yes", "Reduced", "Ad-free", "Ad-free"],
-  ["Exclusive games", "—", "Select", "Most", "All"],
+  ["Extra continues", "—", "Standard", "Extra", "Highest"],
   ["Early access to new releases", "—", "—", "Yes", "Yes"],
-  ["Multiplayer party rooms", "Limited", "Yes", "Yes", "Yes"],
-  ["Priority live trivia entry", "—", "—", "Yes", "Yes"],
+  ["Weekly cosmetics", "—", "Basic", "Yes", "Yes"],
+  ["Exclusive visual themes", "—", "—", "—", "Yes"],
   ["Custom profile/avatar perks", "—", "Basic", "Enhanced", "Full"],
 ];
 
@@ -30,7 +29,6 @@ export function LandingPage() {
   const [motionPaused, setMotionPaused] = useState(false);
   const [category, setCategory] = useState(0);
   const [annual, setAnnual] = useState(false);
-  const rotation = todaysRotation();
   const selected = categories[category];
   return (
     <div className={`landing offer-landing ${motionPaused || settings.reducedMotion ? "motion-paused" : ""}`}>
@@ -38,7 +36,7 @@ export function LandingPage() {
         <div className="hero-art" aria-hidden="true"><img src="/covers/bullwave-neon-hero.png" alt="" fetchPriority="high" /><div className="hero-light" /></div>
         <div className="wrap hero-copy"><p className="kicker">Play. Relax. Repeat.</p><h1 className="display">Your Daily Dose of<br /><span>Chill, Skillful Fun</span></h1>
           <p className="lede">Original puzzle, reflex, rhythm, calm, and party games — play instantly in your browser, no downloads, no waiting.</p>
-          <div className="actions"><ButtonLink to="/games?availability=free-today" variant="primary">Start Playing Free ↗</ButtonLink><a className="btn btn-secondary" href="#plans">See Membership Plans</a></div>
+          <div className="actions"><ButtonLink to="/games" variant="primary">Start Playing Free ↗</ButtonLink><a className="btn btn-secondary" href="#plans">See Membership Plans</a></div>
         </div>
         <button className="motion-control" aria-pressed={motionPaused} onClick={() => setMotionPaused(!motionPaused)}>{motionPaused ? "Resume effects" : "Pause effects"}</button>
       </section>
@@ -46,22 +44,22 @@ export function LandingPage() {
 
       <section className="section" id="discover"><div className="wrap">
         <div className="section-head"><div><p className="kicker">Find your kind of fun</p><h2 className="display">30+ Games. 6 Vibes. Endless Fun.</h2></div><span className="chip">36 playable games</span></div>
-        <p className="meta">Explore solo challenges and shared room games. Today’s free rotation is marked on each card; membership unlocks the full catalog. Room games need at least two connected players.</p>
+        <p className="meta">Explore solo challenges and shared room games. Every published game is free to play; membership adds optional profile, cosmetic, and convenience perks. Room games need at least two connected players.</p>
         <div className="category-tabs" role="tablist" aria-label="Game categories">{categories.map((item, index) => <button key={item.name} id={`category-${index}`} role="tab" aria-selected={category === index} aria-controls="category-panel" tabIndex={category === index ? 0 : -1} onClick={() => setCategory(index)} onKeyDown={(event) => {
           if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
           event.preventDefault(); const next = event.key === "Home" ? 0 : event.key === "End" ? categories.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + categories.length) % categories.length;
           setCategory(next); document.getElementById(`category-${next}`)?.focus();
         }}><span aria-hidden="true">{item.symbol}</span>{item.name}</button>)}</div>
         <div id="category-panel" role="tabpanel" aria-labelledby={`category-${category}`}><div className="category-heading"><h3>{selected.subtitle}</h3><span className="meta">{selected.games.length} games</span></div>
-          <div className="arcade-catalog">{games.filter(game=>game.published&&game.genre===selected.name&&COLLECTION.some(item=>item.slug===game.slug)).map(game=><GameCard key={game.slug} game={game} availability={rotation.some(item=>item.slug===game.slug)?"Free today":"Members"}/>)}</div>
+          <div className="arcade-catalog">{games.filter(game=>game.published&&game.genre===selected.name&&COLLECTION.some(item=>item.slug===game.slug)).map(game=><GameCard key={game.slug} game={game}/>)}</div>
         </div>
         <div className="section-head playable-head"><div><p className="kicker">Ready when you are</p><h2 className="display">Play our originals today</h2></div><Link className="catalog-link" to="/games">View playable games →</Link></div>
-        <div className="arcade-catalog">{games.filter((game) => game.published&&!COLLECTION.some(item=>item.slug===game.slug)).map((game) => <GameCard key={game.slug} game={game} availability={rotation.some((item) => item.slug === game.slug) ? "Free today" : "Members"} />)}</div>
+        <div className="arcade-catalog">{games.filter((game) => game.published&&!COLLECTION.some(item=>item.slug===game.slug)).map((game) => <GameCard key={game.slug} game={game} />)}</div>
       </div></section>
 
       <section className="section" id="plans"><div className="wrap"><div className="section-head"><div><p className="kicker">A little more play, your way</p><h2 className="display">Find your wave.</h2></div><div className="billing-toggle" aria-label="Billing period"><button aria-pressed={!annual} onClick={() => setAnnual(false)}>Monthly</button><button aria-pressed={annual} onClick={() => setAnnual(true)}>Annual <span>Save 20%*</span></button></div></div>
         <p className="meta">Plan preview: the benefits below are proposed. *Annual prices show an illustrative 20% discount; annual billing is not available yet. Review current benefits before joining.</p>
-        <div className="plan-comparison" role="region" aria-label="Compare membership plans" tabIndex={0}><table><caption className="sr-only">Proposed Free, Wave, Surge, and Tide membership benefits</caption><thead><tr><th scope="col">Your membership</th><th scope="col"><h3>Free</h3><div className="price">₹0</div><p className="meta">Start exploring</p><ButtonLink to="/games?availability=free-today">Play Free</ButtonLink></th>
+        <div className="plan-comparison" role="region" aria-label="Compare membership plans" tabIndex={0}><table><caption className="sr-only">Proposed Free, Wave, Surge, and Tide membership benefits</caption><thead><tr><th scope="col">Your membership</th><th scope="col"><h3>Free</h3><div className="price">₹0</div><p className="meta">All published games</p><ButtonLink to="/games">Play Free</ButtonLink></th>
           {PLANS.map((plan) => <th scope="col" key={plan.id} className={plan.id === "surge" ? "highlight-plan" : ""}><h3>{plan.name}</h3><div className="price">{formatInr(Math.round(plan.monthlyPriceInr * (annual ? 0.8 : 1)))}</div><p className="meta">/ month{annual ? ` · ${formatInr(Math.round(plan.monthlyPriceInr * 12 * 0.8))}/year*` : ""}</p><ButtonLink to={`/membership?plan=${plan.id}`} variant={plan.id === "surge" ? "primary" : "secondary"}>Get {plan.name}</ButtonLink></th>)}
         </tr></thead><tbody>{features.map(([feature, ...values]) => <tr key={feature}><th scope="row">{feature}</th>{values.map((value, index) => <td key={index} className={index === 2 ? "highlight-plan" : ""}>{value === "Yes" ? <span className="feature-check" aria-label="Included">✓</span> : value}</td>)}</tr>)}</tbody></table></div>
       </div></section>
@@ -72,11 +70,11 @@ export function LandingPage() {
       </div></section>
 
       <section className="section"><div className="wrap arcade-how"><p className="kicker">Three steps. You’re in.</p><h2 className="display">How it works</h2><div className="steps" style={{ marginTop: 24 }}>
-        <article><span className="step-number">01</span><h3>Sign up in seconds</h3><p>Create your profile to save progress. Just browsing? Try today’s free games as a guest.</p><Link to="/register">Create an account →</Link></article>
+        <article><span className="step-number">01</span><h3>Sign up in seconds</h3><p>Create your profile to save progress. Just browsing? Play any published game as a guest.</p><Link to="/register">Create an account →</Link></article>
         <article><span className="step-number">02</span><h3>Pick your kind of fun</h3><p>Choose cards, puzzles, arcade challenges, trivia, strategy, or a room game with friends.</p><a href="#discover">Explore the collection →</a></article>
-        <article><span className="step-number">03</span><h3>Play instantly</h3><p>Right in your browser. No downloads or waiting — just a little time for yourself.</p><Link to="/games?availability=free-today">Start playing free →</Link></article>
+        <article><span className="step-number">03</span><h3>Play instantly</h3><p>Right in your browser. No downloads or waiting — just a little time for yourself.</p><Link to="/games">Start playing free →</Link></article>
       </div></div></section>
-      <section className="wrap final-play"><p className="kicker">Your next favorite break is here</p><h2 className="display">A little chill. A little challenge.</h2><ButtonLink to="/games?availability=free-today" variant="primary">Start Playing Free ↗</ButtonLink></section>
+      <section className="wrap final-play"><p className="kicker">Your next favorite break is here</p><h2 className="display">A little chill. A little challenge.</h2><ButtonLink to="/games" variant="primary">Start Playing Free ↗</ButtonLink></section>
     </div>
   );
 }

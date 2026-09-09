@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import { SAMPLE_LEADERBOARD, WEEKLY_CHALLENGE, COSMETICS } from "../data/content";
-import { isFreeToday } from "../lib/time";
 import { isMember, membershipChip } from "../lib/access";
 import { useApp } from "../state/AppState";
 import { GameCard } from "../components/GameCard";
@@ -25,10 +24,10 @@ export function ArcadeHomePage() {
           Hello {user?.displayName ?? "there"}. <span className="chip">{membershipChip(entitlement)}</span>
         </p>
         <section style={{ marginTop: 32 }}>
-          <h2>Today’s free three</h2>
+          <h2>Today’s quick picks</h2>
           <div className="grid-3">
             {rotation.map((game) => (
-              <GameCard key={game.slug} game={game} availability="Free today" />
+              <GameCard key={game.slug} game={game} />
             ))}
           </div>
         </section>
@@ -51,19 +50,14 @@ export function ArcadeHomePage() {
               })}
             </div>
           ) : (
-            <EmptyState title="Your arcade fills as you play. Start with today’s three." />
+            <EmptyState title="Your arcade fills as you play. Start with a quick pick." />
           )}
         </section>
         <section style={{ marginTop: 36 }}>
           <h2>Full studio catalog</h2>
           <div className="grid-3">
             {games.filter((game) => game.published).map((game) => (
-              <GameCard
-                key={game.slug}
-                game={game}
-                availability={isFreeToday(game.slug) ? "Free today" : "Members"}
-                locked={!isMember(entitlement) && !isFreeToday(game.slug)}
-              />
+              <GameCard key={game.slug} game={game} />
             ))}
           </div>
         </section>

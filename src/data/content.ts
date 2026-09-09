@@ -79,30 +79,30 @@ export const STORIES: Story[] = [
 export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "playing-todays-free-games",
-    title: "Playing today’s free games",
-    shortAnswer: "Anyone can play the three games in today’s free rotation, subject to the session allowance.",
+    title: "Playing free games",
+    shortAnswer: "Anyone can play every published game without a membership or daily session limit.",
     steps: [
-      "Open Games or Play and look for the Free today badge.",
-      "Open a game and choose Play free if you are eligible.",
-      "An account saves progress. It is not required for the guest trial.",
+      "Open Games or Play and choose any published title.",
+      "Open a game and choose Play free.",
+      "An account saves progress. It is not required to play as a guest.",
     ],
     related: ["understanding-the-free-session-allowance", "supported-controls-and-devices"],
   },
   {
     slug: "understanding-the-free-session-allowance",
-    title: "Understanding the free-session allowance",
-    shortAnswer: "Free play is limited each Kolkata day. The number is set in product configuration, not guessed in the interface.",
+    title: "Understanding free play",
+    shortAnswer: "Published games have no daily play allowance and do not require membership.",
     steps: [
-      "The daily rotation and allowance reset at midnight Asia/Kolkata.",
-      "The live reset time is shown wherever the allowance is explained.",
-      "Membership is optional and is never required with a countdown.",
+      "Pick any published game from the catalog.",
+      "Play again whenever you like; there is no daily unlock limit.",
+      "Membership remains optional and adds cosmetics and convenience perks.",
     ],
     related: ["playing-todays-free-games", "membership-benefits"],
   },
   {
     slug: "membership-benefits",
     title: "Membership benefits",
-    shortAnswer: "Wave, Surge, and Tide unlock the catalog with the benefits listed on Membership. Prices are ₹399, ₹799, and ₹1499 each month.",
+    shortAnswer: "Wave, Surge, and Tide add the optional benefits listed on Membership. Every published game stays free. Prices are ₹399, ₹799, and ₹1499 each month.",
     steps: [
       "Compare plans on the Membership page. Benefits come from one shared list.",
       "Checkout shows the selected plan, amount due, and verified renewal behavior.",

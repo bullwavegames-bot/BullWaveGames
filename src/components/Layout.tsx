@@ -118,7 +118,7 @@ export function AppShell() {
                   <Item to="/membership">Membership</Item>
                   <Item to="/stories">Stories</Item>
                   <Item to="/login">Log in</Item>
-                  <ButtonLink to="/games?availability=free-today" variant="primary">
+                  <ButtonLink to="/games" variant="primary">
                     Play free
                   </ButtonLink>
                 </>
