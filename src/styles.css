@@ -865,6 +865,25 @@ h3 {
   box-shadow: var(--shadow);
 }
 
+.local-payment-console {
+  display: grid;
+  gap: 18px;
+}
+
+.local-payment-summary {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px 24px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(8, 17, 27, 0.45);
+}
+
+.local-payment-summary span {
+  color: var(--mist-dim);
+}
+
 .toast-wrap {
   position: fixed;
   right: 20px;

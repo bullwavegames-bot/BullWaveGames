@@ -1,4 +1,4 @@
-import Fastify, { type FastifyError } from "fastify";
+import Fastify, { type FastifyBaseLogger, type FastifyError } from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import cookie from "@fastify/cookie";
@@ -16,9 +16,9 @@ import { socialRoutes } from "./routes/social.js";
 import { adminRoutes } from "./routes/admin.js";
 import { attachRooms } from "./rooms/ws.js";
 
-export async function buildApp() {
+export async function buildApp(options: { roomsEnabled?: boolean } = {}) {
   const app = Fastify({
-    loggerInstance: logger,
+    loggerInstance: logger as unknown as FastifyBaseLogger,
     trustProxy: true,
     bodyLimit: 1024 * 64,
   });
@@ -70,7 +70,7 @@ export async function buildApp() {
   await app.register(playRoutes);
   await app.register(socialRoutes);
   await app.register(adminRoutes);
-  await attachRooms(app);
+  if (options.roomsEnabled ?? true) await attachRooms(app);
 
   app.setErrorHandler((error: FastifyError | ZodError | ApiError, request, reply) => {
     if (error instanceof ZodError) {

@@ -4,5 +4,6 @@ dist
 *.local
 .vscode
 .idea
+.docx-work/
 .env
 backend/.env

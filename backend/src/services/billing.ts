@@ -9,6 +9,7 @@ import { writeAudit } from "./audit.js";
 import { activateMembership, expireMembership, getMembership, markPastDue, setCancelAtPeriodEnd } from "./membership.js";
 
 function client() {
+  if (config.billingMode === "local") return null;
   if (!config.razorpay.keyId || !config.razorpay.keySecret) return null;
   return new Razorpay({ key_id: config.razorpay.keyId, key_secret: config.razorpay.keySecret });
 }
@@ -68,10 +69,15 @@ export async function createSubscription(input: {
 
   const membership = await getMembership(input.userId);
   let customerId = membership?.razorpay_customer_id ?? null;
-  if (!customerId) {
+  // Standard one-time Orders do not require a Razorpay Customer. Only create
+  // or reuse one for recurring subscriptions, where customer_id is required.
+  if (input.autoRenew && !customerId) {
     const customer = await rz.customers.create({
       name: input.email.split("@")[0],
       email: input.email,
+      // Razorpay returns the existing customer when this email was used by an
+      // earlier checkout instead of rejecting every later attempt.
+      fail_existing: 0,
       notes: { userId: input.userId },
     });
     customerId = String(customer.id);
@@ -81,6 +87,7 @@ export async function createSubscription(input: {
   }
 
   if (input.autoRenew) {
+    if (!customerId) throw badRequest("Unable to create the billing customer.");
     const planRzp = razorpayPlanId(input.planId, input.billingInterval);
     if (!planRzp) throw badRequest("Annual/monthly Razorpay plan IDs are not configured for this plan.");
     const sub = (await rz.subscriptions.create({

@@ -1,6 +1,7 @@
 import { PRODUCT } from "../config/product";
 import { api, loadRazorpayScript } from "./api";
 import type { PlanId } from "../types";
+import type { LocalCheckoutOrder } from "../components/LocalPaymentConsole";
 
 type SubscribeResponse = {
   ok: true;
@@ -20,11 +21,20 @@ export async function startRazorpayCheckout(input: {
   onDismiss: () => void;
   onVerified: (orderId: string) => void;
   onError: (message: string) => void;
+  onLocalCheckout: (order: LocalCheckoutOrder) => void;
 }): Promise<void> {
   const created = await api<SubscribeResponse>("/api/billing/subscribe", {
     method: "POST",
     body: JSON.stringify({ planId: input.planId, billingInterval: "monthly", autoRenew: false }),
   });
+  if (created.mode === "dev") {
+    input.onLocalCheckout({
+      orderId: created.orderId,
+      amountPaise: created.amountPaise,
+      currency: created.currency,
+    });
+    return;
+  }
   if (created.mode !== "razorpay" || !created.razorpayOrderId || !created.keyId) {
     throw new Error("Razorpay is not configured on the API.");
   }

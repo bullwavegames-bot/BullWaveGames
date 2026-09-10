@@ -7,7 +7,9 @@ export type UserRow = {
   id: string;
   email: string;
   billing_email: string;
-  password_hash: string;
+  password_hash: string | null;
+  auth_provider: "legacy" | "supabase";
+  supabase_user_id: string | null;
   display_name: string;
   avatar_id: string;
   email_verified_at: Date | null;

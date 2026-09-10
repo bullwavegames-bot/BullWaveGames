@@ -109,7 +109,7 @@ export async function register(input: {
 export async function login(input: { email: string; password: string; ip?: string; userAgent?: string }) {
   await hitRateLimit(`rl:auth:login:${input.ip ?? "x"}`, 12, 15 * 60);
   const user = await findUserByEmail(input.email.trim().toLowerCase());
-  if (!user || !(await verifyPassword(user.password_hash, input.password))) {
+  if (!user || !user.password_hash || !(await verifyPassword(user.password_hash, input.password))) {
     throw unauthorized("Email or password is incorrect.", "BAD_CREDENTIALS");
   }
   return sessionPayload(user, input.ip, input.userAgent);
@@ -231,7 +231,7 @@ export async function changePassword(userId: string, current: string, next: stri
   if (!validPassword(next)) throw badRequest("Use 8+ characters with a letter and a number.");
   const user = await findUserById(userId);
   if (!user) throw unauthorized();
-  if (!(await verifyPassword(user.password_hash, current))) {
+  if (!user.password_hash || !(await verifyPassword(user.password_hash, current))) {
     throw unauthorized("Current password is incorrect.");
   }
   await sql`UPDATE users SET password_hash = ${await hashPassword(next)}, updated_at = now() WHERE id = ${userId}`;

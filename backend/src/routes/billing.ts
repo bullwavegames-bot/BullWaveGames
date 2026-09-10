@@ -29,6 +29,7 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/api/billing/config", async () => ({
     ok: true,
+    mode: config.billingMode,
     configured: Boolean(config.razorpay.keyId && config.razorpay.keySecret),
     testMode: (config.razorpay.keyId ?? "").startsWith("rzp_test_"),
     keyId: config.razorpay.keyId || null,
@@ -37,7 +38,17 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/api/billing/subscribe", async (request) => {
     const user = requireUser(request);
-    await hitRateLimit(`rl:billing:${user.id}`, 8, 3600);
+    // Keep production checkout creation deliberately tight. Local test mode
+    // needs a shorter window so provider/configuration failures do not lock a
+    // developer out for an hour while testing the Razorpay flow.
+    const billingLimit = config.isProd
+      ? { attempts: 8, windowSeconds: 3600 }
+      : { attempts: 120, windowSeconds: 60 };
+    await hitRateLimit(
+      `rl:billing:v3:${user.id}`,
+      billingLimit.attempts,
+      billingLimit.windowSeconds,
+    );
     const body = z
       .object({
         planId: z.enum(["wave", "surge", "tide"]),

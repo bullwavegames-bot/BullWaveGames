@@ -2,9 +2,11 @@ import { useNavigate } from "react-router-dom";
 import { COMPARISON_ROWS, formatInr, PLANS, PRODUCT } from "../config/product";
 import { checkoutPath, isMember } from "../lib/access";
 import { startRazorpayCheckout } from "../lib/checkout";
+import { api } from "../lib/api";
 import { useApp } from "../state/AppState";
 import { useAuth } from "../state/AuthContext";
 import { Button, ButtonLink, Notice } from "../components/ui";
+import { LocalPaymentConsole, type LocalCheckoutOrder } from "../components/LocalPaymentConsole";
 import { PageIntro } from "../components/PageIntro";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -47,6 +49,7 @@ export function MembershipPage() {
   const member = isMember(entitlement);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [localOrder, setLocalOrder] = useState<(LocalCheckoutOrder & { planName: string }) | null>(null);
 
   const join = (planId: (typeof PLANS)[number]["id"]) => {
     setSelectedPlan(planId);
@@ -79,6 +82,10 @@ export function MembershipPage() {
           setBusy(false);
           setError(message);
         },
+        onLocalCheckout: (order) => {
+          setBusy(false);
+          setLocalOrder({ ...order, planName: plan.name });
+        },
       });
     } catch (cause) {
       setBusy(false);
@@ -86,8 +93,33 @@ export function MembershipPage() {
     }
   };
 
+  const approveLocalPayment = async () => {
+    if (!localOrder || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api("/api/billing/dev/fulfill", {
+        method: "POST",
+        body: JSON.stringify({ orderId: localOrder.orderId }),
+      });
+      navigate(`/payment-return?order=${localOrder.orderId}`);
+    } catch (cause) {
+      setBusy(false);
+      setError(cause instanceof Error ? cause.message : "Could not complete the test payment.");
+    }
+  };
+
   return (
     <div className="section">
+      {localOrder ? (
+        <LocalPaymentConsole
+          order={localOrder}
+          planName={localOrder.planName}
+          busy={busy}
+          onApprove={() => void approveLocalPayment()}
+          onClose={() => setLocalOrder(null)}
+        />
+      ) : null}
       <div className="wrap">
         <PageIntro eyebrow="Choose your wave" title="Unlock the studio." description="Eight games stay free. Other titles include five free plays. Membership opens unlimited catalog access. Wave ₹399 · Surge ₹799 · Tide ₹1499.">
           <div className="intro-perks"><span>✦ Original games</span><span>◇ Personal touches</span><span>↗ Play in your browser</span></div>

@@ -14,13 +14,15 @@ async function main() {
   }
   await migrate();
   await seed();
+  let redisAvailable = true;
   try {
     await connectRedis();
   } catch (error) {
+    redisAvailable = false;
     logger.warn({ err: error }, "Redis is not available; rooms and rate limits are degraded");
   }
-  const app = await buildApp();
-  const stopWorkers = startWorkers();
+  const app = await buildApp({ roomsEnabled: redisAvailable });
+  const stopWorkers = startWorkers({ redisAvailable });
   await app.listen({ port: config.port, host: config.host });
   logger.info({ port: config.port }, "Bullwave backend listening");
 

@@ -6,6 +6,7 @@ import { api, loadRazorpayScript } from "../lib/api";
 import { useApp } from "../state/AppState";
 import { useAuth } from "../state/AuthContext";
 import { Button, ButtonLink, Notice } from "../components/ui";
+import { LocalPaymentConsole, type LocalCheckoutOrder } from "../components/LocalPaymentConsole";
 import type { PlanId } from "../types";
 import { PLANS } from "../config/product";
 
@@ -43,6 +44,7 @@ export function CheckoutPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [entitlement, setEntitlement] = useState(localEntitlement);
+  const [localOrder, setLocalOrder] = useState<LocalCheckoutOrder | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -72,6 +74,11 @@ export function CheckoutPage() {
         method: "POST",
         body: JSON.stringify({ planId, billingInterval: "monthly", autoRenew: false }),
       });
+      if (created.mode === "dev") {
+        setBusy(false);
+        setLocalOrder({ orderId: created.orderId, amountPaise: created.amountPaise, currency: created.currency });
+        return;
+      }
       if (created.mode !== "razorpay" || !created.razorpayOrderId || !created.keyId) {
         throw new Error("Razorpay is not configured on the API. Start the backend with RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.");
       }
@@ -115,8 +122,33 @@ export function CheckoutPage() {
     }
   };
 
+  const approveLocalPayment = async () => {
+    if (!localOrder || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api("/api/billing/dev/fulfill", {
+        method: "POST",
+        body: JSON.stringify({ orderId: localOrder.orderId }),
+      });
+      navigate(`/payment-return?order=${localOrder.orderId}`);
+    } catch (cause) {
+      setBusy(false);
+      setError(cause instanceof Error ? cause.message : "Could not complete the test payment.");
+    }
+  };
+
   return (
     <div className="section">
+      {localOrder ? (
+        <LocalPaymentConsole
+          order={localOrder}
+          planName={plan.name}
+          busy={busy}
+          onApprove={() => void approveLocalPayment()}
+          onClose={() => setLocalOrder(null)}
+        />
+      ) : null}
       <div className="wrap split">
         <div>
           <h1 className="display">Review membership</h1>
@@ -141,7 +173,7 @@ export function CheckoutPage() {
           <p>Access period: {PRODUCT.prototype.accessPeriodDays} days from verified activation.</p>
           <p>Renewal: Does not renew automatically in this configuration. Recurring Razorpay plans can be added later.</p>
           <p>Account {user.email}</p>
-          <Notice>Razorpay test mode. Use a Razorpay test card (for example 4111 1111 1111 1111). This is not a live charge.</Notice>
+          <Notice>Payment test mode. The local Bullwave console does not collect card details or make a live charge.</Notice>
           {error ? <p className="error">{error}</p> : null}
           <Button variant="primary" className="btn-full" disabled={busy} onClick={() => void pay()}>
             {busy ? "Opening Razorpay…" : `Pay ${formatInr(plan.monthlyPriceInr)}`}

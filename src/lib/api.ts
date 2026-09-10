@@ -15,7 +15,19 @@ const configuredApi = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8787").
 /** In Vite dev, call `/api` same-origin so the proxy forwards to Fastify and CORS is not involved. */
 export const API_URL = import.meta.env.DEV && localApiBase(configuredApi) ? "" : configuredApi;
 
-type ApiErrorBody = { ok?: boolean; error?: string };
+type ApiErrorBody = {
+  ok?: boolean;
+  error?: string | { description?: string; message?: string };
+  message?: string;
+};
+
+function apiErrorMessage(body: ApiErrorBody, status: number): string {
+  if (typeof body.error === "string") return body.error;
+  if (body.error?.description) return body.error.description;
+  if (body.error?.message) return body.error.message;
+  if (body.message) return body.message;
+  return `Request failed (${status})`;
+}
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const { data } = await supabase.auth.getSession();
@@ -26,7 +38,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   const response = await fetch(`${API_URL}${path}`, { ...options, headers });
   const json = (await response.json().catch(() => ({}))) as T & ApiErrorBody;
   if (!response.ok || json.ok === false) {
-    throw new Error(json.error || `Request failed (${response.status})`);
+    throw new Error(apiErrorMessage(json, response.status));
   }
   return json;
 }

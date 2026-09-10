@@ -1,9 +1,10 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { verifyAccessToken } from "../lib/jwt.js";
 import { verifySupabaseAccessToken } from "../lib/supabaseJwt.js";
-import { ensureFromSupabase, findUserById } from "../services/users.js";
+import { findUserById, provisionSupabaseUser } from "../services/users.js";
 import { ensureGuest } from "../services/play.js";
 import { unauthorized, forbidden } from "../lib/errors.js";
+import { config } from "../config.js";
 
 export type AuthUser = { id: string; role: "player" | "admin" };
 
@@ -23,18 +24,17 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
     const header = request.headers.authorization;
     const token = header?.startsWith("Bearer ") ? header.slice(7) : request.cookies.bw_access;
     if (token) {
-      const supabaseUser = await verifySupabaseAccessToken(token);
-      if (supabaseUser) {
-        const row = await ensureFromSupabase(supabaseUser.id, supabaseUser.email);
-        request.authUser = { id: row.id, role: row.role };
-      } else {
-        try {
-          const claims = await verifyAccessToken(token);
-          const user = await findUserById(claims.sub);
-          if (user) request.authUser = { id: user.id, role: user.role };
-        } catch {
-          request.authUser = null;
-        }
+      try {
+        const claims = config.authMode === "supabase"
+          ? await verifySupabaseAccessToken(token)
+          : await verifyAccessToken(token);
+        const user = config.authMode === "supabase"
+          ? await provisionSupabaseUser(claims, token)
+          : await findUserById(claims.sub);
+        if (user) request.authUser = { id: user.id, role: user.role };
+      } catch (error) {
+        request.log.debug({ err: error }, "authentication failed");
+        request.authUser = null;
       }
     }
     if (request.url.startsWith("/api/play") || request.url.startsWith("/rooms")) {
