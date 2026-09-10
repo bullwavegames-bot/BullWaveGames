@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { formatInr, PLANS } from "../config/product";
@@ -27,17 +27,23 @@ const SKIN_BLURB: Record<string, string> = {
   fold: "Two players, one sheet.",
 };
 
+const STEP_ART = [
+  "/covers/kite-line-cover.png",
+  "/covers/lantern-path-cover.png",
+  "/covers/rangoli-recall-cover.png",
+];
+
 const stepEase = [0.22, 1, 0.36, 1] as const;
 
 export function WelcomePage() {
   const { completeOnboarding, avatars, user } = useAuth();
-  const { setSelectedPlan, settings } = useApp();
+  const { games, setSelectedPlan, settings } = useApp();
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const reducePref = useReducedMotion();
   const reduce = Boolean(reducePref) || settings.reducedMotion;
   const returnTo = allowlistReturn(params.get("return"), "/play");
-  const rotation = alwaysFreeGames();
+  const rotation = alwaysFreeGames(games);
   const [step, setStep] = useState(1);
   const [dir, setDir] = useState(1);
   const [name, setName] = useState(user?.displayName ?? "");
@@ -76,7 +82,7 @@ export function WelcomePage() {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Enter" || event.shiftKey) return;
       const tag = (event.target as HTMLElement | null)?.tagName;
-      if (tag === "TEXTAREA") return;
+      if (tag === "TEXTAREA" || tag === "INPUT") return;
       if (step < 3) {
         event.preventDefault();
         go(step + 1);
@@ -94,11 +100,12 @@ export function WelcomePage() {
 
   const hello = (name || user?.displayName || "").trim();
   const skin = AVATAR_SKINS[avatar];
+  const star = rotation[featured] ?? rotation[0];
 
   return (
-    <div className={`welcome-stage${motionOff ? " is-still" : ""}`}>
+    <div className={`welcome-stage welcome-step-${step}${motionOff ? " is-still" : ""}`}>
       <div className="welcome-bg" aria-hidden="true">
-        <img src="/covers/kite-line-cover.png" alt="" />
+        <img src={STEP_ART[step - 1]} alt="" />
         <HeroParticles paused={motionOff} />
         <div className="welcome-wash" />
         <span className="welcome-orb welcome-orb-a" />
@@ -130,6 +137,9 @@ export function WelcomePage() {
           {paused ? "Resume motion" : "Pause motion"}
         </button>
       </header>
+      <div className="welcome-progress" aria-hidden="true">
+        <i style={{ width: `${(step / 3) * 100}%` }} />
+      </div>
 
       <div className="welcome-body">
         <AnimatePresence mode="wait" custom={dir}>
@@ -144,17 +154,24 @@ export function WelcomePage() {
             transition={{ duration: motionOff ? 0.01 : 0.45, ease: stepEase }}
           >
             {step === 1 ? (
-              <>
-                <p className="kicker">Step 1 of 3</p>
-                <h1 className="display">
-                  Welcome to your
-                  <br />
-                  <span>browser arcade.</span>
-                </h1>
-                <p className="welcome-lede">
-                  {hello ? `Hey ${hello.split(" ")[0]}. ` : ""}
-                  Short sessions. Instant play. No download. No stakes.
-                </p>
+              <div className="welcome-split">
+                <div className="welcome-copy">
+                  <p className="kicker">Step 1 of 3</p>
+                  <h1 className="display">
+                    Welcome to your
+                    <br />
+                    <span>browser arcade.</span>
+                  </h1>
+                  <p className="welcome-lede">
+                    {hello ? `Hey ${hello.split(" ")[0]}. ` : ""}
+                    Short sessions. Instant play. No download. No stakes.
+                  </p>
+                  <ul className="welcome-promise">
+                    <li>Always-free originals</li>
+                    <li>No wallet, no betting</li>
+                    <li>Ready in the tab</li>
+                  </ul>
+                </div>
                 <div className="welcome-perks">
                   {PERKS.map((item, index) => (
                     <motion.button
@@ -163,72 +180,81 @@ export function WelcomePage() {
                       className={`welcome-perk${perk === item.id ? " is-on" : ""}`}
                       aria-pressed={perk === item.id}
                       onClick={() => setPerk(item.id)}
-                      initial={motionOff ? false : { opacity: 0, y: 18 }}
+                      initial={motionOff ? false : { opacity: 0, y: 22 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: motionOff ? 0 : 0.08 + index * 0.07, duration: 0.4 }}
-                      whileHover={motionOff ? undefined : { y: -6, scale: 1.02 }}
+                      transition={{ delay: motionOff ? 0 : 0.08 + index * 0.06, duration: 0.42 }}
+                      whileHover={motionOff ? undefined : { y: -6 }}
                       whileTap={motionOff ? undefined : { scale: 0.98 }}
                     >
                       <span className="welcome-perk-mark">{item.mark}</span>
                       <strong>{item.title}</strong>
-                      <AnimatePresence>
-                        {perk === item.id ? (
-                          <motion.em
-                            initial={motionOff ? false : { height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={motionOff ? undefined : { height: 0, opacity: 0 }}
-                          >
-                            {item.copy}
-                          </motion.em>
-                        ) : null}
-                      </AnimatePresence>
+                      <em>{item.copy}</em>
                     </motion.button>
                   ))}
                 </div>
-              </>
+              </div>
             ) : null}
 
             {step === 2 ? (
               <>
-                <p className="kicker">Step 2 of 3</p>
-                <h1 className="display">
-                  Free stays <span>free.</span>
-                </h1>
-                <p className="welcome-lede">
-                  Eight games stay free with no play cap. Every other title includes 5 free plays, then Wave from {formatInr(399)} / month unlocks the studio.
-                </p>
-                <div className="welcome-free-grid" aria-label="Always-free games">
-                  {rotation.map((game, index) => (
-                    <motion.button
-                      key={game.slug}
-                      type="button"
-                      className={`welcome-fan-card${featured === index ? " is-front" : ""}`}
-                      onClick={() => setFeatured(index)}
-                      aria-pressed={featured === index}
-                      whileHover={motionOff ? undefined : { y: -6 }}
-                    >
-                      <img src={game.cover} alt="" />
-                      <span>
-                        <strong>{game.title}</strong>
-                        {featured === index ? <em>{game.sessionMinutes} min · {game.genre}</em> : null}
-                      </span>
-                    </motion.button>
-                  ))}
+                <div className="welcome-copy welcome-copy-wide">
+                  <p className="kicker">Step 2 of 3</p>
+                  <h1 className="display">
+                    Free stays <span>free.</span>
+                  </h1>
+                  <p className="welcome-lede">
+                    Eight games stay free with no play cap. Every other title includes 5 free plays, then Wave from {formatInr(399)} / month unlocks the studio.
+                  </p>
                 </div>
-                <p className="meta welcome-fan-note">{rotation[featured]?.fantasy}</p>
+                {star ? (
+                  <div className="welcome-showcase">
+                    <motion.article
+                      key={star.slug}
+                      className="welcome-hero-card"
+                      initial={motionOff ? false : { opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      <img src={star.cover} alt="" />
+                      <div>
+                        <p className="welcome-chip">Always free</p>
+                        <h2>{star.title}</h2>
+                        <p>{star.fantasy}</p>
+                        <small>
+                          {star.sessionMinutes} min · {star.genre}
+                        </small>
+                      </div>
+                    </motion.article>
+                    <div className="welcome-thumbs" aria-label="Always-free games">
+                      {rotation.map((game, index) => (
+                        <motion.button
+                          key={game.slug}
+                          type="button"
+                          className={`welcome-thumb${featured === index ? " is-front" : ""}`}
+                          onClick={() => setFeatured(index)}
+                          aria-pressed={featured === index}
+                          whileHover={motionOff ? undefined : { y: -4 }}
+                        >
+                          <img src={game.cover} alt="" />
+                          <span>{game.title}</span>
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 <div className="welcome-plans">
                   {PLANS.map((plan) => (
                     <motion.button
                       key={plan.id}
                       type="button"
-                      className={`welcome-plan welcome-plan-${plan.id}${peekPlan === plan.id ? " is-on" : ""}`}
+                      className={`welcome-plan welcome-plan-${plan.id}${peekPlan === plan.id ? " is-on" : ""}${plan.id === "surge" ? " is-featured" : ""}`}
                       aria-pressed={peekPlan === plan.id}
                       onClick={() => {
                         setPeekPlan(plan.id);
                         setSelectedPlan(plan.id);
                       }}
-                      whileHover={motionOff ? undefined : { y: -4 }}
+                      whileHover={motionOff ? undefined : { y: -6 }}
                     >
+                      {plan.id === "surge" ? <p className="welcome-chip">Most chosen</p> : null}
                       <strong>{plan.name}</strong>
                       <b>{formatInr(plan.monthlyPriceInr)}</b>
                       <em>/ month</em>
@@ -240,7 +266,7 @@ export function WelcomePage() {
                     </motion.button>
                   ))}
                 </div>
-                <p className="meta">Tap a plan to remember it — you can subscribe later. Free play does not need a card.</p>
+                <p className="meta welcome-fan-note">Tap a plan to remember it — you can subscribe later. Free play does not need a card.</p>
               </>
             ) : null}
 
@@ -278,9 +304,9 @@ export function WelcomePage() {
                           className={`welcome-skin${avatar === id ? " is-on" : ""}`}
                           aria-pressed={avatar === id}
                           onClick={() => setAvatar(id)}
-                          whileHover={motionOff ? undefined : { scale: 1.06, y: -4 }}
+                          style={{ "--skin": item?.tint ?? "#61d6b0" } as CSSProperties}
+                          whileHover={motionOff ? undefined : { scale: 1.04, y: -4 }}
                           whileTap={motionOff ? undefined : { scale: 0.96 }}
-                          animate={avatar === id && !motionOff ? { boxShadow: "0 0 0 2px #61d6b0, 0 0 28px rgba(97,214,176,.35)" } : {}}
                         >
                           <span>{item?.glyph ?? "•"}</span>
                           {item?.label ?? id}
@@ -291,11 +317,13 @@ export function WelcomePage() {
                 </div>
                 <motion.aside
                   className="welcome-preview"
+                  style={{ "--skin": skin?.tint ?? "#61d6b0" } as CSSProperties}
                   animate={motionOff ? undefined : { y: [0, -8, 0] }}
                   transition={motionOff ? undefined : { repeat: Infinity, duration: 5, ease: "easeInOut" }}
                 >
                   <div className="welcome-preview-ring" aria-hidden="true" />
-                  <PlayerAvatar name={name || "Player"} avatarId={avatar} size={128} framed />
+                  <PlayerAvatar name={name || "Player"} avatarId={avatar} size={148} framed />
+                  <p className="welcome-chip">Player card</p>
                   <h2>{name.trim() || "Player"}</h2>
                   <p>{skin?.label ?? avatar}</p>
                   <p className="meta">{SKIN_BLURB[avatar] ?? "A studio original."}</p>
