@@ -1,56 +1,133 @@
 import { Link, useParams } from "react-router-dom";
-import { SAMPLE_LEADERBOARD, WEEKLY_CHALLENGE } from "../data/content";
+import { WEEKLY_CHALLENGE } from "../data/content";
 import { accessForGame } from "../lib/access";
+import { challengeCountdown, weeklyBoard } from "../lib/challenges";
 import { formatKolkata, todaysRotation } from "../lib/time";
 import { formatInr } from "../config/product";
 import { useApp } from "../state/AppState";
 import { GameCard } from "../components/GameCard";
+import { GamePreview } from "../components/GamePreview";
+import { PageIntro } from "../components/PageIntro";
+import { RankedBoard } from "../components/RankedBoard";
 import { Button, ButtonLink, EmptyState, Notice } from "../components/ui";
 
 export function DailyChallengePage() {
   const { entitlement, playsUsed, user } = useApp();
   const daily = todaysRotation()[0];
+  const rotation = todaysRotation();
   const access = daily ? accessForGame(daily, entitlement, playsUsed(daily.slug)) : null;
   const locked = access?.kind === "locked" || access?.kind === "capped";
+  const remaining = challengeCountdown(WEEKLY_CHALLENGE.endsAt);
   return (
-    <div className="section wrap">
-      <p className="kicker">Daily challenge</p>
-      <h1 className="display">Today’s featured run</h1>
-      <p className="meta">Rotates at midnight IST. Score only — no buy-in.</p>
-      {daily ? (
-        <div className="panel" style={{ marginTop: 20 }}>
-          <h2>{daily.title}</h2>
-          <p>{daily.fantasy}</p>
-          <p className="meta">About {daily.sessionMinutes} minutes · {daily.genre}</p>
-          {locked ? (
-            <ButtonLink to="/membership" variant="primary">
-              Unlock from {formatInr(399)}
-            </ButtonLink>
-          ) : (
-            <ButtonLink to={`/play/${daily.slug}`} variant="primary">
-              Play today’s challenge
-            </ButtonLink>
-          )}
+    <div className="section wrap challenge-page">
+      <PageIntro
+        eyebrow="Daily challenge"
+        title="Today’s featured run"
+        description="A short session that rotates at midnight IST. Score for yourself — there is no buy-in and membership does not purchase extra ranked attempts."
+      >
+        <div className="challenge-tabs">
+          <ButtonLink to="/challenges">Weekly</ButtonLink>
+          <ButtonLink to="/challenges/daily" variant="primary">
+            Daily
+          </ButtonLink>
+          <ButtonLink to="/leaderboards">Leaderboards</ButtonLink>
         </div>
+      </PageIntro>
+
+      {daily ? (
+        <article className="challenge-hero">
+          <div>
+            <div className="challenge-pills">
+              <span className="billing-pill billing-pill-paid">Live today</span>
+              <span className="billing-pill">Resets midnight IST</span>
+              <span className="billing-pill">No buy-in</span>
+            </div>
+            <p className="kicker">{daily.genre}</p>
+            <h2>{daily.title}</h2>
+            <p className="challenge-hero-lede">{daily.fantasy}</p>
+            <div className="challenge-hero-actions">
+              {locked ? (
+                <ButtonLink to="/membership" variant="primary">
+                  Unlock from {formatInr(399)}
+                </ButtonLink>
+              ) : (
+                <ButtonLink to={`/play/${daily.slug}`} variant="primary">
+                  Play today’s challenge
+                </ButtonLink>
+              )}
+              <ButtonLink to={`/games/${daily.slug}`}>Game details</ButtonLink>
+              {!user ? <ButtonLink to="/login?return=/challenges/daily">Sign in to keep a best</ButtonLink> : null}
+            </div>
+          </div>
+          <aside className="challenge-cover">
+            <GamePreview game={daily} />
+            <img
+              src={daily.cover}
+              alt={daily.coverAlt}
+              onError={(event) => {
+                event.currentTarget.style.display = "none";
+              }}
+            />
+            <div>
+              <p className="kicker">Session</p>
+              <strong>About {daily.sessionMinutes} minutes</strong>
+              <p className="meta">{access?.label ?? daily.genre}</p>
+            </div>
+          </aside>
+        </article>
       ) : (
         <EmptyState title="No daily game is published right now." />
       )}
-      <div className="grid-3" style={{ marginTop: 28 }}>
-        {todaysRotation().map((game) => (
-          <GameCard key={game.slug} game={game} />
-        ))}
+
+      <div className="billing-stats">
+        <article className="panel">
+          <h3>Rotation</h3>
+          <p>Midnight IST</p>
+          <small>A new featured title each day</small>
+        </article>
+        <article className="panel">
+          <h3>Also this week</h3>
+          <p>{WEEKLY_CHALLENGE.name}</p>
+          <small>{remaining} on the ranked board</small>
+        </article>
+        <article className="panel">
+          <h3>Scoring</h3>
+          <p>Personal best</p>
+          <small>Daily runs keep a local best, not a paid rank</small>
+        </article>
+        <article className="panel">
+          <h3>Access</h3>
+          <p>{locked ? "Members" : "Playable"}</p>
+          <small>{locked ? "Five free starts used, or a members title" : "Open this session from the catalog"}</small>
+        </article>
       </div>
-      <div className="panel" style={{ marginTop: 28 }}>
-        <p className="kicker">Also this week</p>
+
+      <section>
+        <div className="section-head">
+          <h2>Today’s rotation</h2>
+          <p className="meta">Play any of today’s featured games. The first card is the daily challenge.</p>
+        </div>
+        <div className="grid-3">
+          {rotation.map((game) => (
+            <GameCard key={game.slug} game={game} />
+          ))}
+        </div>
+      </section>
+
+      <section className="panel billing-card">
+        <p className="kicker">Weekly ranked</p>
         <h2>{WEEKLY_CHALLENGE.name}</h2>
-        <p>{WEEKLY_CHALLENGE.modifier}</p>
-        <ButtonLink to="/challenges">Open weekly challenge</ButtonLink>
-      </div>
-      {!user ? (
-        <p className="meta" style={{ marginTop: 16 }}>
-          <Link to="/login?return=/challenges/daily">Sign in</Link> to keep a personal best.
+        <p className="challenge-hero-lede">{WEEKLY_CHALLENGE.modifier}</p>
+        <p className="meta">
+          Ends {formatKolkata(new Date(WEEKLY_CHALLENGE.endsAt), { dateStyle: "medium", timeStyle: "short" })} IST · reward{" "}
+          {WEEKLY_CHALLENGE.cosmeticReward}
         </p>
-      ) : null}
+        <div className="challenge-hero-actions">
+          <ButtonLink to="/challenges" variant="primary">
+            Open weekly challenge
+          </ButtonLink>
+        </div>
+      </section>
     </div>
   );
 }
@@ -58,72 +135,96 @@ export function DailyChallengePage() {
 export function LeaderboardsPage() {
   const { user, store, identityKey, games } = useApp();
   const you = store.challengeScores[identityKey];
-  const weekly = [
-    ...SAMPLE_LEADERBOARD,
-    ...(you ? [{ rank: 6, displayName: user?.displayName ?? "You", score: you, isYou: true }] : []),
-  ]
-    .sort((a, b) => b.score - a.score)
-    .map((row, index) => ({ ...row, rank: index + 1 }));
+  const weekly = weeklyBoard(user?.displayName, you);
+  const youRow = weekly.find((row) => row.isYou);
+  const remaining = challengeCountdown(WEEKLY_CHALLENGE.endsAt);
   const personal = Object.entries(store.bests)
     .filter(([key]) => key.startsWith(`${identityKey}:`))
     .map(([, value]) => value)
     .sort((a, b) => b.score - a.score);
   return (
-    <div className="section wrap">
-      <p className="kicker">Leaderboards</p>
-      <h1 className="display">See how your run stacks up</h1>
-      <Notice>Studio names on the weekly board are sample data until live ranking ships. Your scores on this device are real.</Notice>
-      <h2>Weekly challenge</h2>
-      <p className="meta">
-        {WEEKLY_CHALLENGE.name} · ends {formatKolkata(new Date(WEEKLY_CHALLENGE.endsAt), { dateStyle: "medium" })}
-      </p>
-      <table className="table">
-        <thead>
-          <tr>
-            <th>Rank</th>
-            <th>Player</th>
-            <th>Score</th>
-          </tr>
-        </thead>
-        <tbody>
-          {weekly.map((row) => (
-            <tr key={`${row.rank}-${row.displayName}`} style={"isYou" in row && row.isYou ? { color: "var(--gold-soft)" } : undefined}>
-              <td>{row.rank}</td>
-              <td>{row.displayName}{"isYou" in row && row.isYou ? " (you)" : ""}</td>
-              <td>{row.score}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="actions" style={{ marginTop: 12 }}>
-        <ButtonLink to="/challenges">Enter weekly challenge</ButtonLink>
-        <ButtonLink to="/challenges/daily">Daily challenge</ButtonLink>
+    <div className="section wrap challenge-page">
+      <PageIntro
+        eyebrow="Leaderboards"
+        title="See how your run stacks up"
+        description="The weekly board is a public ranked list. Your game bests stay private on this device until live ranking ships."
+      >
+        <div className="challenge-tabs">
+          <ButtonLink to="/challenges">Weekly</ButtonLink>
+          <ButtonLink to="/challenges/daily">Daily</ButtonLink>
+          <ButtonLink to="/leaderboards" variant="primary">
+            Leaderboards
+          </ButtonLink>
+        </div>
+      </PageIntro>
+
+      <div className="billing-stats">
+        <article className="panel">
+          <h3>Time left</h3>
+          <p>{remaining}</p>
+          <small>{WEEKLY_CHALLENGE.name}</small>
+        </article>
+        <article className="panel">
+          <h3>Your standing</h3>
+          <p>{youRow ? `Rank ${youRow.rank}` : "Unplaced"}</p>
+          <small>{typeof you === "number" ? `${you.toLocaleString("en-IN")} best` : "Enter and play to place"}</small>
+        </article>
+        <article className="panel">
+          <h3>Reward</h3>
+          <p>{WEEKLY_CHALLENGE.cosmeticReward}</p>
+          <small>Cosmetic only — not currency</small>
+        </article>
+        <article className="panel">
+          <h3>Board data</h3>
+          <p>Prototype names</p>
+          <small>Studio names are sample. Your scores here are real.</small>
+        </article>
       </div>
-      <h2>Your game bests</h2>
-      {personal.length === 0 ? (
-        <EmptyState title="Play a game to place a score on your private board." />
-      ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Game</th>
-              <th>Best</th>
-              <th>Stars</th>
-            </tr>
-          </thead>
-          <tbody>
-            {personal.map((item) => (
-              <tr key={item.slug}>
-                <td>
-                  <Link to={`/games/${item.slug}`}>{games.find((game) => game.slug === item.slug)?.title ?? item.slug}</Link>
-                </td>
-                <td>{item.score}</td>
-                <td>{item.stars}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+
+      <section className="panel challenge-board-card">
+        <div className="section-head">
+          <div>
+            <p className="kicker">Public board</p>
+            <h2>Weekly challenge</h2>
+          </div>
+          <div className="challenge-hero-actions">
+            <ButtonLink to="/challenges" variant="primary">
+              Enter weekly challenge
+            </ButtonLink>
+            <ButtonLink to="/challenges/daily">Daily challenge</ButtonLink>
+          </div>
+        </div>
+        <RankedBoard rows={weekly} emptyTitle="No submissions yet." />
+      </section>
+
+      <section className="panel billing-card">
+        <div className="section-head">
+          <div>
+            <p className="kicker">Private</p>
+            <h2>Your game bests</h2>
+          </div>
+          <p className="meta">Stored on this device. Not a paid ranking.</p>
+        </div>
+        {personal.length === 0 ? (
+          <EmptyState title="Play a game to place a score on your private board." />
+        ) : (
+          <ol className="ranked-list personal-bests">
+            {personal.map((item) => {
+              const game = games.find((entry) => entry.slug === item.slug);
+              return (
+                <li key={item.slug} className="ranked-row">
+                  <span className="ranked-place">★</span>
+                  <span className="ranked-name">
+                    <Link to={`/games/${item.slug}`}>{game?.title ?? item.slug}</Link>
+                  </span>
+                  <span className="ranked-gap">{item.stars} stars</span>
+                  <span className="ranked-score">{item.score.toLocaleString("en-IN")}</span>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </section>
     </div>
   );
 }

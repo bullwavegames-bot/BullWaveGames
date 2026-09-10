@@ -1,11 +1,16 @@
-import { SAMPLE_LEADERBOARD, WEEKLY_CHALLENGE, COSMETICS } from "../data/content";
+import { WEEKLY_CHALLENGE, COSMETICS } from "../data/content";
 import { accessForGame, alwaysFreeGames, isMember } from "../lib/access";
+import { challengeCountdown, weeklyBoard } from "../lib/challenges";
+import { gameBySlug } from "../data/games";
 import { useApp } from "../state/AppState";
 import { GameCard } from "../components/GameCard";
+import { GamePreview } from "../components/GamePreview";
 import { PlanChip } from "../components/PlanChip";
-import { Badge, Button, ButtonLink, EmptyState, Notice } from "../components/ui";
-import { useState } from "react";
-import { formatKolkata } from "../lib/time";
+import { PageIntro } from "../components/PageIntro";
+import { RankedBoard } from "../components/RankedBoard";
+import { Badge, Button, ButtonLink, EmptyState } from "../components/ui";
+import { useEffect, useState } from "react";
+import { formatKolkata, todaysRotation } from "../lib/time";
 import { formatInr, PRODUCT } from "../config/product";
 
 export function ArcadeHomePage() {
@@ -108,65 +113,177 @@ export function ArcadeHomePage() {
 
 export function ChallengesPage() {
   const { user, store, identityKey, enterChallenge, entitlement } = useApp();
-  const entered = store.challengeEntered[identityKey];
-  const you = store.challengeScores[identityKey];
-  const board: { rank: number; displayName: string; score: number; isYou?: boolean }[] = [
-    ...SAMPLE_LEADERBOARD,
-    ...(you ? [{ rank: 6, displayName: user?.displayName ?? "You", score: you, isYou: true }] : []),
-  ].sort((a, b) => b.score - a.score)
-    .map((row, index) => ({ ...row, rank: index + 1 }));
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const entered = Boolean(store.challengeEntered[identityKey]);
+  const youScore = store.challengeScores[identityKey];
+  const board = weeklyBoard(user?.displayName, youScore);
+  const youRow = board.find((row) => row.isYou);
+  const game = gameBySlug(WEEKLY_CHALLENGE.gameSlug);
+  const daily = todaysRotation()[0];
+  const remaining = challengeCountdown(WEEKLY_CHALLENGE.endsAt, now);
+  const ended = remaining === "Ended";
+  const endsLabel = formatKolkata(new Date(WEEKLY_CHALLENGE.endsAt), { dateStyle: "medium", timeStyle: "short" });
+  const standing = youRow
+    ? `Rank ${youRow.rank}`
+    : entered
+      ? "Entered"
+      : user
+        ? "Not entered"
+        : "Inspecting";
   return (
-    <div className="section wrap">
-      <p className="kicker">Challenges</p>
-      <h1 className="display">A fresh challenge. A new personal best.</h1>
-      <div className="actions" style={{ marginBottom: 16 }}>
-        <ButtonLink to="/challenges/daily">Daily Challenge</ButtonLink>
-        <ButtonLink to="/leaderboards">Leaderboards</ButtonLink>
-      </div>
-      <div className="panel">
-        <h2>{WEEKLY_CHALLENGE.name}</h2>
-        <p>Game: {WEEKLY_CHALLENGE.gameSlug}</p>
-        <p>{WEEKLY_CHALLENGE.rules}</p>
-        <p>{WEEKLY_CHALLENGE.modifier}</p>
-        <p className="meta">
-          Ends {formatKolkata(new Date(WEEKLY_CHALLENGE.endsAt), { dateStyle: "medium", timeStyle: "short" })} {WEEKLY_CHALLENGE.timezone}
-        </p>
-        <p>Reward: {WEEKLY_CHALLENGE.cosmeticReward}</p>
-        {user ? (
-          <Button variant="primary" onClick={enterChallenge}>
-            {entered ? "Entered" : "Enter challenge"}
-          </Button>
-        ) : (
-          <ButtonLink to="/login?return=/challenges" variant="primary">
-            Sign in to record a ranked result
+    <div className="section wrap challenge-page">
+      <PageIntro
+        eyebrow="Challenges"
+        title="A fresh challenge. A new personal best."
+        description="One weekly ranked modifier, a daily featured run, and a public board. Score only — membership never buys a ranking advantage."
+      >
+        <div className="challenge-tabs">
+          <ButtonLink to="/challenges" variant="primary">
+            Weekly
           </ButtonLink>
-        )}
-        <Notice>Membership continues do not create a paid ranking advantage. Prototype leaderboard names are sample data.</Notice>
+          <ButtonLink to="/challenges/daily">Daily</ButtonLink>
+          <ButtonLink to="/leaderboards">Leaderboards</ButtonLink>
+        </div>
+      </PageIntro>
+
+      <article className="challenge-hero">
+        <div>
+          <div className="challenge-pills">
+            <span className="billing-pill billing-pill-paid">{ended ? "Closed" : "Live this week"}</span>
+            <span className="billing-pill">Cosmetic reward</span>
+            <span className="billing-pill">No buy-in</span>
+          </div>
+          <p className="kicker">Weekly ranked run</p>
+          <h2>{WEEKLY_CHALLENGE.name}</h2>
+          <p className="challenge-hero-lede">
+            {WEEKLY_CHALLENGE.modifier} Play {game?.title ?? "the featured game"} with the same scoring and continue allowance as everyone else.
+          </p>
+          <div className="challenge-hero-actions">
+            {user ? (
+              <>
+                {entered ? (
+                  <Button disabled>Entered</Button>
+                ) : (
+                  <Button variant="primary" onClick={enterChallenge} disabled={ended}>
+                    Enter challenge
+                  </Button>
+                )}
+                {!ended ? (
+                  <ButtonLink to={`/play/${WEEKLY_CHALLENGE.gameSlug}`} variant={entered ? "primary" : "secondary"}>
+                    {entered ? "Play ranked run" : `Practice ${game?.title ?? "this game"}`}
+                  </ButtonLink>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <ButtonLink to="/login?return=/challenges" variant="primary">
+                  Sign in to record a ranked result
+                </ButtonLink>
+                <ButtonLink to={`/play/${WEEKLY_CHALLENGE.gameSlug}`}>Play {game?.title ?? "the game"}</ButtonLink>
+              </>
+            )}
+            <ButtonLink to={`/games/${WEEKLY_CHALLENGE.gameSlug}`}>Game details</ButtonLink>
+          </div>
+        </div>
+        <aside className="challenge-cover">
+          {game ? <GamePreview game={game} /> : null}
+          {game ? (
+            <img
+              src={game.cover}
+              alt={game.coverAlt}
+              onError={(event) => {
+                event.currentTarget.style.display = "none";
+              }}
+            />
+          ) : null}
+          <div>
+            <p className="kicker">{game?.genre ?? "Reflex"}</p>
+            <strong>{game?.title ?? WEEKLY_CHALLENGE.gameSlug}</strong>
+            <p className="meta">{game ? `About ${game.sessionMinutes} minutes` : "Featured weekly game"}</p>
+          </div>
+        </aside>
+      </article>
+
+      <div className="billing-stats">
+        <article className="panel">
+          <h3>Time left</h3>
+          <p>{remaining}</p>
+          <small>Closes {endsLabel} IST</small>
+        </article>
+        <article className="panel">
+          <h3>Your standing</h3>
+          <p>{standing}</p>
+          <small>{typeof youScore === "number" ? `${youScore.toLocaleString("en-IN")} best` : "Play to place a score"}</small>
+        </article>
+        <article className="panel">
+          <h3>Reward</h3>
+          <p>{WEEKLY_CHALLENGE.cosmeticReward}</p>
+          <small>Cosmetic only — not currency</small>
+        </article>
+        <article className="panel">
+          <h3>Access</h3>
+          <p>{isMember(entitlement) ? "Member" : "Guest board"}</p>
+          <small>{isMember(entitlement) ? "Same ranked rules as everyone" : "Inspect freely. Sign in to submit."}</small>
+        </article>
       </div>
-      <h2>Leaderboard</h2>
-      {board.length === 0 ? (
-        <EmptyState title="No submissions yet." />
-      ) : (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Rank</th>
-              <th>Player</th>
-              <th>Score</th>
-            </tr>
-          </thead>
-          <tbody>
-            {board.map((row) => (
-              <tr key={row.displayName} style={row.isYou ? { color: "var(--gold-soft)" } : undefined}>
-                <td>{row.rank}</td>
-                <td>{row.displayName}</td>
-                <td>{row.score}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      {isMember(entitlement) ? null : <p className="meta">Guests may inspect the board.</p>}
+
+      <div className="billing-grid">
+        <section className="panel billing-card">
+          <h2>How ranked play works</h2>
+          <ul className="challenge-rules">
+            <li>
+              <strong>Score only</strong>
+              <span>No buy-in, no wallet, no paid extra attempts on this board.</span>
+            </li>
+            <li>
+              <strong>Same continues</strong>
+              <span>{WEEKLY_CHALLENGE.rules}</span>
+            </li>
+            <li>
+              <strong>Fair modifier</strong>
+              <span>{WEEKLY_CHALLENGE.modifier}</span>
+            </li>
+            <li>
+              <strong>Sample names</strong>
+              <span>Studio names on the board are prototype data until live ranking ships. Your device score is real.</span>
+            </li>
+          </ul>
+        </section>
+        <section className="panel billing-card">
+          <h2>Today’s daily run</h2>
+          {daily ? (
+            <>
+              <p className="challenge-hero-lede">{daily.fantasy}</p>
+              <p className="meta">
+                {daily.title} · {daily.genre} · about {daily.sessionMinutes} min · rotates midnight IST
+              </p>
+              <div className="challenge-hero-actions">
+                <ButtonLink to="/challenges/daily" variant="primary">
+                  Open daily challenge
+                </ButtonLink>
+                <ButtonLink to={`/play/${daily.slug}`}>Play {daily.title}</ButtonLink>
+              </div>
+            </>
+          ) : (
+            <EmptyState title="No daily game is published right now." />
+          )}
+        </section>
+      </div>
+
+      <section className="panel challenge-board-card">
+        <div className="section-head">
+          <div>
+            <p className="kicker">Weekly board</p>
+            <h2>Leaderboard</h2>
+          </div>
+          <p className="meta">Prototype names until live ranking. Continues do not buy rank.</p>
+        </div>
+        <RankedBoard rows={board} emptyTitle="No submissions yet." />
+      </section>
     </div>
   );
 }

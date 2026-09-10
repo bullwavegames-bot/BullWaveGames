@@ -3532,3 +3532,309 @@ html { scroll-behavior: smooth; scroll-padding-top: 100px; }
     justify-items: start;
   }
 }
+
+.challenge-page {
+  display: grid;
+  gap: 28px;
+}
+
+.challenge-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.challenge-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(220px, 0.75fr);
+  gap: 28px;
+  align-items: stretch;
+  padding: 28px;
+  border-radius: 28px;
+  border: 1px solid rgba(241, 245, 249, 0.1);
+  background:
+    radial-gradient(560px 220px at 8% 0%, rgba(67, 199, 232, 0.18), transparent 55%),
+    radial-gradient(420px 180px at 100% 100%, rgba(213, 170, 80, 0.12), transparent 60%),
+    linear-gradient(145deg, rgba(29, 43, 58, 0.92), rgba(11, 18, 28, 0.94));
+}
+
+.challenge-hero h2 {
+  margin: 6px 0 10px;
+  font-size: clamp(32px, 4.4vw, 52px);
+  letter-spacing: -0.05em;
+}
+
+.challenge-hero-lede {
+  max-width: 52ch;
+  color: var(--mist);
+}
+
+.challenge-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.challenge-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.challenge-cover {
+  display: grid;
+  align-content: end;
+  min-height: 240px;
+  padding: 16px;
+  border-radius: 22px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(241, 245, 249, 0.08);
+  background: rgba(7, 12, 20, 0.45);
+}
+
+.challenge-cover .game-preview {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+}
+
+.challenge-cover .game-preview p {
+  display: none;
+}
+
+.challenge-cover img {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.challenge-cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(180deg, rgba(11, 18, 28, 0.1), rgba(11, 18, 28, 0.82));
+}
+
+.challenge-cover > div {
+  position: relative;
+  z-index: 3;
+}
+
+.challenge-cover strong {
+  display: block;
+  font-size: 22px;
+  letter-spacing: -0.03em;
+}
+
+.challenge-rules {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.challenge-rules li {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(7, 12, 20, 0.42);
+  border: 1px solid rgba(241, 245, 249, 0.06);
+}
+
+.challenge-rules strong {
+  color: var(--white);
+}
+
+.challenge-rules span {
+  color: var(--mist);
+  font-size: 14px;
+}
+
+.challenge-board-card {
+  padding: 24px;
+}
+
+.challenge-board-card .section-head,
+.billing-card .section-head {
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.personal-bests .ranked-row {
+  grid-template-columns: 42px minmax(0, 1fr) minmax(90px, auto) 88px;
+}
+
+.ranked-board {
+  display: grid;
+  gap: 22px;
+}
+
+.ranked-podium {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1.18fr 1fr;
+  gap: 12px;
+  align-items: end;
+}
+
+.ranked-podium-card {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 18px 14px 16px;
+  border-radius: 20px;
+  min-height: 168px;
+  background: rgba(7, 12, 20, 0.42);
+  border: 1px solid rgba(241, 245, 249, 0.08);
+}
+
+.ranked-podium-card.is-first {
+  min-height: 210px;
+  background:
+    radial-gradient(180px 90px at 50% 0%, rgba(213, 170, 80, 0.22), transparent 70%),
+    rgba(7, 12, 20, 0.5);
+}
+
+.ranked-podium-card.is-you {
+  border-color: rgba(97, 214, 176, 0.45);
+}
+
+.ranked-medal {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mist-dim);
+}
+
+.ranked-podium-card.is-gold .ranked-medal,
+.ranked-place.is-gold {
+  color: #d5aa50;
+}
+
+.ranked-podium-card.is-silver .ranked-medal,
+.ranked-place.is-silver {
+  color: #c9d4e3;
+}
+
+.ranked-podium-card.is-bronze .ranked-medal,
+.ranked-place.is-bronze {
+  color: #c9845c;
+}
+
+.ranked-podium-card b {
+  font-size: 22px;
+  letter-spacing: -0.03em;
+}
+
+.ranked-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.ranked-row {
+  display: grid;
+  grid-template-columns: 42px 36px minmax(0, 1fr) minmax(90px, auto) 88px;
+  gap: 12px;
+  align-items: center;
+  min-height: 58px;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+.ranked-row.is-you {
+  border-radius: 12px;
+  border-bottom-color: transparent;
+  background: rgba(97, 214, 176, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(97, 214, 176, 0.18);
+}
+
+.ranked-place {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--mist-dim);
+}
+
+.ranked-avatar {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--nav);
+  border: 1px solid var(--line-strong);
+  color: var(--reward);
+  font: 650 12px/1 var(--font-body);
+}
+
+.ranked-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ranked-name em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 650;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(97, 214, 176, 0.16);
+  color: #61d6b0;
+}
+
+.ranked-gap {
+  color: var(--mist-dim);
+  font-size: 13px;
+  text-align: right;
+}
+
+.ranked-score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .challenge-hero,
+  .ranked-podium {
+    grid-template-columns: 1fr;
+  }
+  .ranked-podium-card,
+  .ranked-podium-card.is-first {
+    min-height: 0;
+  }
+  .ranked-row {
+    grid-template-columns: 32px 32px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "place avatar name score"
+      "place avatar gap score";
+  }
+  .ranked-place { grid-area: place; }
+  .ranked-avatar { grid-area: avatar; width: 32px; height: 32px; }
+  .ranked-name { grid-area: name; }
+  .ranked-gap { grid-area: gap; text-align: left; }
+  .ranked-score { grid-area: score; }
+  .personal-bests .ranked-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "name score"
+      "gap score";
+  }
+  .personal-bests .ranked-place { display: none; }
+}
