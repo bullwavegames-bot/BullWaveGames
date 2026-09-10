@@ -25,6 +25,9 @@ export interface Plan {
   name: string;
   monthlyPriceInr: number;
   benefits: string[];
+  tagline: string;
+  bestFor: string;
+  featured?: boolean;
 }
 
 export interface GameControls {

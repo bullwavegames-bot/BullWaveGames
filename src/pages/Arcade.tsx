@@ -4,7 +4,7 @@ import { challengeCountdown, weeklyBoard } from "../lib/challenges";
 import { gameBySlug } from "../data/games";
 import { useApp } from "../state/AppState";
 import { GameCard } from "../components/GameCard";
-import { GamePreview } from "../components/GamePreview";
+import { ChallengeCover } from "../components/ChallengeCover";
 import { PlanChip } from "../components/PlanChip";
 import { PageIntro } from "../components/PageIntro";
 import { RankedBoard } from "../components/RankedBoard";
@@ -189,23 +189,14 @@ export function ChallengesPage() {
             <ButtonLink to={`/games/${WEEKLY_CHALLENGE.gameSlug}`}>Game details</ButtonLink>
           </div>
         </div>
-        <aside className="challenge-cover">
-          {game ? <GamePreview game={game} /> : null}
-          {game ? (
-            <img
-              src={game.cover}
-              alt={game.coverAlt}
-              onError={(event) => {
-                event.currentTarget.style.display = "none";
-              }}
-            />
-          ) : null}
-          <div>
-            <p className="kicker">{game?.genre ?? "Reflex"}</p>
-            <strong>{game?.title ?? WEEKLY_CHALLENGE.gameSlug}</strong>
-            <p className="meta">{game ? `About ${game.sessionMinutes} minutes` : "Featured weekly game"}</p>
-          </div>
-        </aside>
+        {game ? (
+          <ChallengeCover
+            game={game}
+            kicker={game.genre}
+            title={game.title}
+            meta={`About ${game.sessionMinutes} minutes`}
+          />
+        ) : null}
       </article>
 
       <div className="billing-stats">

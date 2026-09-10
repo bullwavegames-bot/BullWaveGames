@@ -181,7 +181,7 @@ export function AppShell() {
             <NavLink to="/friends">
               <IconUsers size={18} stroke={1.7} />
               Friends
-              <span className="nav-soon">Soon</span>
+              <span className="nav-soon">Play soon</span>
             </NavLink>
             <NavLink to="/stories">
               <IconBook2 size={18} stroke={1.7} />

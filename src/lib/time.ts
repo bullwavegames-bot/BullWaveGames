@@ -87,12 +87,18 @@ export function resetLabel(date = new Date()): string {
   })} IST`;
 }
 
-/** Prototype rotation: three published, rotation-eligible games, windowed by Kolkata date. */
+/** Three always-free games, windowed by Kolkata date, so the daily run never burns catalog plays. */
 export function todaysRotation(date = new Date()): Game[] {
-  const published = GAMES.filter((game) => game.published && game.rotationEligible && !game.maintenance);
+  const free = new Set<string>(PRODUCT.prototype.alwaysFreeSlugs);
+  const bySlug = new Map(GAMES.map((game) => [game.slug, game]));
+  const published = PRODUCT.prototype.alwaysFreeSlugs
+    .map((slug) => bySlug.get(slug))
+    .filter((game): game is Game => Boolean(game?.published && !game.maintenance && free.has(game.slug)));
+  if (!published.length) return [];
   const dayNumber = Math.floor(new Date(`${kolkataDateKey(date)}T00:00:00+05:30`).getTime() / 86400000);
   const start = ((dayNumber % published.length) + published.length) % published.length;
-  return [0, 1, 2].map((offset) => published[(start + offset) % published.length]);
+  const count = Math.min(3, published.length);
+  return Array.from({ length: count }, (_, offset) => published[(start + offset) % published.length]);
 }
 
 export function isFreeToday(slug: string, date = new Date()): boolean {

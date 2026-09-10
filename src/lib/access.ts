@@ -1,5 +1,6 @@
 import { PRODUCT, PLANS, planById } from "../config/product";
 import { gameBySlug, GAMES } from "../data/games";
+import { isFreeToday } from "./time";
 import type { Entitlement, Game, PlanId, UserProfile } from "../types";
 
 export function isMember(entitlement: Entitlement, now = Date.now()): boolean {
@@ -49,6 +50,7 @@ export function accessForGame(game: Game, entitlement: Entitlement, playsUsed = 
   if (game.unsupportedNote) return { kind: "unsupported", label: "Not supported here", remaining: null };
   if (isMember(entitlement)) return { kind: "play", label: "Play", remaining: null };
   if (isAlwaysFree(game.slug)) return { kind: "play-free", label: "Always free", remaining: null };
+  if (isFreeToday(game.slug)) return { kind: "play-free", label: "Free today", remaining: null };
   const remaining = Math.max(0, PRODUCT.prototype.freePlaysPerGame - playsUsed);
   if (remaining > 0) {
     return {
@@ -92,7 +94,7 @@ export function allowlistReturn(raw: string | null | undefined, fallback = "/pla
       return plan ? checkoutPath(plan) : "/membership";
     }
     if (path.startsWith("/payment-return") || path.startsWith("/membership/payment-return")) return path;
-    const allowed = ["/play", "/games", "/membership", "/challenges", "/collection", "/profile", "/billing", "/welcome", "/settings", "/help", "/payment-return"];
+    const allowed = ["/play", "/games", "/membership", "/challenges", "/collection", "/profile", "/billing", "/welcome", "/settings", "/help", "/payment-return", "/friends", "/leaderboards"];
     if (allowed.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))) return path;
   } catch {
     return fallback;

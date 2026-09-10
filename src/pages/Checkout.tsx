@@ -1,14 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { formatInr, planById, PRODUCT } from "../config/product";
+import { formatInr, planById, PLANS, PRODUCT } from "../config/product";
 import { isMember, planFromQuery } from "../lib/access";
 import { api, loadRazorpayScript } from "../lib/api";
 import { useApp } from "../state/AppState";
 import { useAuth } from "../state/AuthContext";
 import { Button, ButtonLink, Notice } from "../components/ui";
 import { LocalPaymentConsole, type LocalCheckoutOrder } from "../components/LocalPaymentConsole";
+import { PageIntro } from "../components/PageIntro";
 import type { PlanId } from "../types";
-import { PLANS } from "../config/product";
 
 type SubscribeResponse = {
   ok: true;
@@ -34,6 +34,8 @@ type OrderResponse = {
   } | null;
 };
 
+const STEPS = ["Choose a plan", "Review checkout", "Pay in INR", "Play the catalog"];
+
 export function CheckoutPage() {
   const [params] = useSearchParams();
   const { user, entitlement: localEntitlement } = useApp();
@@ -58,9 +60,19 @@ export function CheckoutPage() {
   }
   if (isMember(entitlement) && entitlement.planId === planId) {
     return (
-      <div className="section wrap">
-        <h1 className="display">This plan is already active.</h1>
-        <ButtonLink to="/billing">View billing</ButtonLink>
+      <div className="section wrap membership-page">
+        <PageIntro
+          eyebrow="Checkout"
+          title={`${plan.name} is already active.`}
+          description="This period is already on your account. Manage receipts from Billing, or pick a different plan from Membership."
+        />
+        <div className="challenge-hero-actions">
+          <ButtonLink to="/billing" variant="primary">
+            View billing
+          </ButtonLink>
+          <ButtonLink to="/membership">See other plans</ButtonLink>
+          <ButtonLink to="/play">Play</ButtonLink>
+        </div>
       </div>
     );
   }
@@ -89,7 +101,7 @@ export function CheckoutPage() {
         amount: created.amountPaise,
         currency: created.currency,
         name: PRODUCT.brand,
-        description: `${plan.name} membership`,
+        description: `${plan.name} membership · ${PRODUCT.prototype.accessPeriodDays} days`,
         order_id: created.razorpayOrderId,
         prefill: { email: user.email, name: user.displayName },
         theme: { color: "#61D6B0" },
@@ -138,8 +150,10 @@ export function CheckoutPage() {
     }
   };
 
+  const switching = isMember(entitlement) && entitlement.planId && entitlement.planId !== planId;
+
   return (
-    <div className="section">
+    <div className="section wrap membership-page">
       {localOrder ? (
         <LocalPaymentConsole
           order={localOrder}
@@ -149,41 +163,143 @@ export function CheckoutPage() {
           onClose={() => setLocalOrder(null)}
         />
       ) : null}
-      <div className="wrap split">
-        <div>
-          <h1 className="display">Review membership</h1>
-          <div className="filters">
-            {PLANS.map((item) => (
-              <Link key={item.id} className="chip-btn" to={`/membership/checkout?plan=${item.id}`} aria-current={item.id === planId}>
-                {item.name}
-              </Link>
-            ))}
-          </div>
-          <ul>
+
+      <PageIntro
+        eyebrow="Checkout"
+        title={`Review ${plan.name}.`}
+        description="Confirm the amount, period, and account before payment. Member perks start only after verified status — not when you open this page."
+      >
+        <ol className="membership-steps" aria-label="Checkout progress">
+          {STEPS.map((step, index) => (
+            <li key={step} className={index === 1 || index === 2 ? "is-current" : undefined}>
+              <span>{index + 1}</span>
+              {step}
+            </li>
+          ))}
+        </ol>
+      </PageIntro>
+
+      <div className="filters">
+        {PLANS.map((item) => (
+          <Link
+            key={item.id}
+            className="chip-btn"
+            to={`/membership/checkout?plan=${item.id}`}
+            aria-current={item.id === planId ? "page" : undefined}
+          >
+            {item.name} · {formatInr(item.monthlyPriceInr)}
+          </Link>
+        ))}
+      </div>
+
+      {switching ? (
+        <Notice>
+          You currently have {planById(entitlement.planId!).name}. Paying for {plan.name} starts a new {PRODUCT.prototype.accessPeriodDays}-day period after verified payment.
+        </Notice>
+      ) : null}
+
+      <div className="billing-grid checkout-grid">
+        <section className="panel billing-card">
+          <p className="kicker">{plan.bestFor}</p>
+          <h2>Included with {plan.name}</h2>
+          <p className="challenge-hero-lede">{plan.tagline}</p>
+          <ul className="challenge-rules">
             {plan.benefits.map((item) => (
-              <li key={item}>{item}</li>
+              <li key={item}>
+                <strong>{item}</strong>
+                <span>Included for {PRODUCT.prototype.accessPeriodDays} days after verified activation.</span>
+              </li>
             ))}
+            <li>
+              <strong>{PRODUCT.prototype.continueCaps[plan.id]} continues per session</strong>
+              <span>Membership continues do not add ranked attempts on the weekly board.</span>
+            </li>
+            <li>
+              <strong>Unlimited catalog</strong>
+              <span>Eight always-free games stay free even after this period ends.</span>
+            </li>
           </ul>
-        </div>
-        <div className="panel">
+        </section>
+
+        <aside className={`panel billing-card checkout-summary membership-plan-${plan.id}`}>
+          <p className="kicker">Order summary</p>
           <h2>{plan.name}</h2>
-          <p>Monthly price {formatInr(plan.monthlyPriceInr)}</p>
-          <p>Amount due now {formatInr(plan.monthlyPriceInr)}</p>
-          {PRODUCT.prototype.taxBreakdownAvailable ? <p>Tax breakdown from provider.</p> : <p className="meta">Displayed prices include any tax already baked into the listed INR amount.</p>}
-          <p>Access period: {PRODUCT.prototype.accessPeriodDays} days from verified activation.</p>
-          <p>Renewal: Does not renew automatically in this configuration. Recurring Razorpay plans can be added later.</p>
-          <p>Account {user.email}</p>
-          <Notice>Payment test mode. The local Bullwave console does not collect card details or make a live charge.</Notice>
+          <dl className="billing-meta">
+            <div>
+              <dt>Amount due now</dt>
+              <dd>{formatInr(plan.monthlyPriceInr)}</dd>
+            </div>
+            <div>
+              <dt>Access period</dt>
+              <dd>{PRODUCT.prototype.accessPeriodDays} days</dd>
+            </div>
+            <div>
+              <dt>Renewal</dt>
+              <dd>{PRODUCT.prototype.autoRenewalEnabled ? "Follows provider" : "Does not auto-renew"}</dd>
+            </div>
+            <div>
+              <dt>Tax</dt>
+              <dd>{PRODUCT.prototype.taxIncludedInDisplayedPrice ? "Included in the displayed INR price" : "Shown at checkout"}</dd>
+            </div>
+            <div>
+              <dt>Account</dt>
+              <dd>{user.email}</dd>
+            </div>
+            <div>
+              <dt>Merchant</dt>
+              <dd>{PRODUCT.legalEntity}</dd>
+            </div>
+            <div>
+              <dt>Checkout</dt>
+              <dd>{PRODUCT.prototype.paymentProviderName}</dd>
+            </div>
+          </dl>
+          <Notice>
+            {PRODUCT.prototype.isLivePayment
+              ? "Live payment. Razorpay collects the charge."
+              : "Payment test mode. The local Bullwave console does not collect card details or make a live charge."}
+          </Notice>
           {error ? <p className="error">{error}</p> : null}
           <Button variant="primary" className="btn-full" disabled={busy} onClick={() => void pay()}>
-            {busy ? "Opening Razorpay…" : `Pay ${formatInr(plan.monthlyPriceInr)}`}
+            {busy ? "Opening checkout…" : `Pay ${formatInr(plan.monthlyPriceInr)}`}
           </Button>
-          <p className="meta">
-            <Link to="/terms-and-conditions">Terms</Link> · <Link to="/refund-and-cancellation-policy">Refund</Link> ·{" "}
-            <Link to="/shipping-and-delivery-policy">Shipping</Link> · <Link to="/contact">Contact</Link>
+          <p className="plan-legal">
+            <Link to="/membership">Back to plans</Link> · <Link to="/terms-and-conditions">Terms</Link> ·{" "}
+            <Link to="/refund-and-cancellation-policy">Refund</Link> · <Link to="/shipping-and-delivery-policy">Shipping</Link> ·{" "}
+            <Link to="/contact">Contact</Link>
           </p>
-        </div>
+        </aside>
       </div>
+    </div>
+  );
+}
+
+function ReturnShell({
+  kicker,
+  title,
+  description,
+  children,
+  currentStep,
+}: {
+  kicker: string;
+  title: string;
+  description: string;
+  children: ReactNode;
+  currentStep: number;
+}) {
+  return (
+    <div className="section wrap membership-page">
+      <PageIntro eyebrow={kicker} title={title} description={description}>
+        <ol className="membership-steps" aria-label="Checkout progress">
+          {STEPS.map((step, index) => (
+            <li key={step} className={index === currentStep ? "is-current" : undefined}>
+              <span>{index + 1}</span>
+              {step}
+            </li>
+          ))}
+        </ol>
+      </PageIntro>
+      {children}
     </div>
   );
 }
@@ -208,64 +324,156 @@ export function PaymentReturnPage() {
 
   if (!orderId) {
     return (
-      <div className="section wrap">
-        <h1>We’re confirming your payment.</h1>
-        <p>No order was found. Do not pay again. Contact support if you were charged.</p>
-        <ButtonLink to="/contact">Contact support</ButtonLink>
-      </div>
+      <ReturnShell
+        kicker="Payment"
+        title="We’re confirming your payment."
+        description="No order was found on this link. Do not pay again. If a statement charge appears, contact support with the time of the attempt."
+        currentStep={2}
+      >
+        <div className="challenge-hero-actions">
+          <ButtonLink to="/contact" variant="primary">
+            Contact support
+          </ButtonLink>
+          <ButtonLink to="/billing">Open billing</ButtonLink>
+          <ButtonLink to="/membership">Back to plans</ButtonLink>
+        </div>
+      </ReturnShell>
     );
   }
 
   if (loadError) {
     return (
-      <div className="section wrap">
-        <h1>We’re confirming your payment.</h1>
+      <ReturnShell
+        kicker="Payment"
+        title="We’re confirming your payment."
+        description="The confirmation screen could not load this order yet. Do not start a second payment."
+        currentStep={2}
+      >
         <p className="error">{loadError}</p>
-        <ButtonLink to="/contact">Contact support</ButtonLink>
-      </div>
+        <div className="challenge-hero-actions">
+          <ButtonLink to="/contact" variant="primary">
+            Contact support
+          </ButtonLink>
+          <ButtonLink to="/billing">Open billing</ButtonLink>
+        </div>
+      </ReturnShell>
     );
   }
 
   if (!order) {
     return (
-      <div className="section wrap">
-        <p>Loading payment status…</p>
-      </div>
+      <ReturnShell
+        kicker="Payment"
+        title="Checking verified status…"
+        description="This screen waits on the server order, not the URL alone."
+        currentStep={2}
+      >
+        <p className="meta">Loading payment status…</p>
+      </ReturnShell>
     );
   }
 
+  const plan = planById(order.plan_id);
+  const amount = formatInr(Number(order.amount_paise) / 100);
+
   if (order.status === "succeeded" && order.activated) {
     return (
-      <div className="section wrap article">
-        <h1 className="display">{planById(order.plan_id).name} is active. Your member perks are ready.</h1>
-        <p>Active plan: {planById(order.plan_id).name}</p>
-        <p>Confirmed amount: {formatInr(Number(order.amount_paise) / 100)}</p>
-        <p>Access follows the verified entitlement period. This screen is based on verified order status, not the URL alone.</p>
-        <ul>
-          {planById(order.plan_id).benefits.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-        <div className="actions">
-          <ButtonLink to="/play" variant="primary">
-            Play
-          </ButtonLink>
-          <ButtonLink to="/billing">View billing</ButtonLink>
+      <ReturnShell
+        kicker="Payment confirmed"
+        title={`${plan.name} is active.`}
+        description="Member perks are ready for this 30-day period. Eight always-free games stay free even after access ends."
+        currentStep={3}
+      >
+        <section className={`billing-hero billing-hero-${plan.id}`}>
+          <div>
+            <p className="kicker">Verified order</p>
+            <h2>{plan.name}</h2>
+            <p className="billing-hero-lede">
+              {plan.tagline} This screen is based on verified order status, not the URL alone.
+            </p>
+            <div className="billing-hero-actions">
+              <ButtonLink to="/play" variant="primary">
+                Play the catalog
+              </ButtonLink>
+              <ButtonLink to="/billing">View billing</ButtonLink>
+              <ButtonLink to="/challenges">Open challenges</ButtonLink>
+            </div>
+          </div>
+          <dl className="billing-facts">
+            <div>
+              <dt>Paid</dt>
+              <dd>{amount}</dd>
+            </div>
+            <div>
+              <dt>Reference</dt>
+              <dd>{order.reference}</dd>
+            </div>
+            <div>
+              <dt>Period</dt>
+              <dd>{PRODUCT.prototype.accessPeriodDays} days</dd>
+            </div>
+            <div>
+              <dt>Renewal</dt>
+              <dd>{PRODUCT.prototype.autoRenewalEnabled ? "Follows provider" : "No auto-renew"}</dd>
+            </div>
+          </dl>
+        </section>
+        <div className="billing-grid">
+          <section className="panel billing-card">
+            <h2>Included now</h2>
+            <ul className="challenge-rules">
+              {plan.benefits.map((item) => (
+                <li key={item}>
+                  <strong>{item}</strong>
+                  <span>Active for this verified period.</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section className="panel billing-card">
+            <h2>Receipts</h2>
+            <p className="challenge-hero-lede">
+              Download text receipts and update billing email from Billing. Merchant {PRODUCT.legalEntity}. Checkout via{" "}
+              {PRODUCT.prototype.paymentProviderName}.
+            </p>
+            <Notice>Razorpay or local test payment verified on the server.</Notice>
+          </section>
         </div>
-        <Notice>Razorpay test payment verified on the server.</Notice>
-      </div>
+      </ReturnShell>
     );
   }
 
   if (order.status === "pending") {
     return (
-      <div className="section wrap article" style={{ textAlign: "center" }}>
-        <h1 className="display">We’re confirming your payment.</h1>
-        <p>
-          Plan {planById(order.plan_id).name}. Reference {order.reference}.
-        </p>
-        <p>Activation is being checked. Do not pay again while confirmation is pending.</p>
-        <div className="actions" style={{ justifyContent: "center" }}>
+      <ReturnShell
+        kicker="Payment pending"
+        title="We’re confirming your payment."
+        description={`${plan.name} · reference ${order.reference}. Activation waits on verified status. Do not pay again while this is pending.`}
+        currentStep={2}
+      >
+        <div className="billing-stats">
+          <article className="panel">
+            <h3>Plan</h3>
+            <p>{plan.name}</p>
+            <small>Amount {amount}</small>
+          </article>
+          <article className="panel">
+            <h3>Reference</h3>
+            <p>{order.reference}</p>
+            <small>Keep this if you contact support</small>
+          </article>
+          <article className="panel">
+            <h3>Status</h3>
+            <p>Pending</p>
+            <small>Not activated yet</small>
+          </article>
+          <article className="panel">
+            <h3>Next step</h3>
+            <p>Wait</p>
+            <small>Check status instead of paying twice</small>
+          </article>
+        </div>
+        <div className="challenge-hero-actions">
           <Button
             variant="primary"
             disabled={checking}
@@ -274,25 +482,51 @@ export function PaymentReturnPage() {
               void refresh().finally(() => setChecking(false));
             }}
           >
-            Check status
+            {checking ? "Checking…" : "Check status"}
           </Button>
           <ButtonLink to="/contact">Contact support</ButtonLink>
+          <ButtonLink to="/billing">Open billing</ButtonLink>
         </div>
-      </div>
+      </ReturnShell>
     );
   }
 
   return (
-    <div className="section wrap article">
-      <h1 className="display">Your membership payment wasn’t completed.</h1>
-      <p>{order.safe_reason || "The payment did not complete."}</p>
-      <p>This does not claim that no money was deducted. If your statement looks different, contact support with {order.reference}.</p>
-      <div className="actions">
+    <ReturnShell
+      kicker="Payment not completed"
+      title="Your membership payment wasn’t completed."
+      description={order.safe_reason || "The payment did not complete. This does not claim that no money was deducted."}
+      currentStep={2}
+    >
+      <div className="billing-stats">
+        <article className="panel">
+          <h3>Plan</h3>
+          <p>{plan.name}</p>
+          <small>Retry uses the same review screen</small>
+        </article>
+        <article className="panel">
+          <h3>Reference</h3>
+          <p>{order.reference}</p>
+          <small>Share this with support if a statement charge appears</small>
+        </article>
+        <article className="panel">
+          <h3>Amount</h3>
+          <p>{amount}</p>
+          <small>Listed INR for this attempt</small>
+        </article>
+        <article className="panel">
+          <h3>Status</h3>
+          <p>{order.status}</p>
+          <small>Not activated</small>
+        </article>
+      </div>
+      <div className="challenge-hero-actions">
         <ButtonLink to={`/membership/checkout?plan=${order.plan_id}`} variant="primary">
-          Retry
+          Retry {plan.name}
         </ButtonLink>
         <ButtonLink to="/contact">Contact support</ButtonLink>
+        <ButtonLink to="/membership">Choose another plan</ButtonLink>
       </div>
-    </div>
+    </ReturnShell>
   );
 }

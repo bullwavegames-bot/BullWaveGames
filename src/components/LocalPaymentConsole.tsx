@@ -1,5 +1,5 @@
 import { Button, Dialog, Notice } from "./ui";
-import { formatInr } from "../config/product";
+import { formatInr, PRODUCT } from "../config/product";
 
 export type LocalCheckoutOrder = {
   orderId: string;
@@ -31,8 +31,10 @@ export function LocalPaymentConsole({
           <strong>{formatInr(order.amountPaise / 100)}</strong>
           <span>Currency</span>
           <strong>{order.currency}</strong>
+          <span>Period</span>
+          <strong>{PRODUCT.prototype.accessPeriodDays} days · no auto-renew</strong>
         </div>
-        <p className="meta">Order {order.orderId}</p>
+        <p className="meta">Order {order.orderId}. Simulate success only if you started this test checkout.</p>
         <div className="actions">
           <Button variant="primary" disabled={busy} onClick={onApprove}>
             {busy ? "Confirming…" : "Simulate successful payment"}
