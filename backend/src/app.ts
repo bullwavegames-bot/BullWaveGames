@@ -15,12 +15,37 @@ import { playRoutes } from "./routes/play.js";
 import { socialRoutes } from "./routes/social.js";
 import { adminRoutes } from "./routes/admin.js";
 import { attachRooms } from "./rooms/ws.js";
+import { sql } from "./db.js";
+import { redis } from "./redis.js";
 
-export async function buildApp(options: { roomsEnabled?: boolean } = {}) {
+type ReadinessChecks = { database: () => Promise<unknown>; redis: () => Promise<unknown> };
+
+async function bounded(check: () => Promise<unknown>, timeoutMs = 2_000): Promise<unknown> {
+  let timer: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      check(),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Dependency check timed out.")), timeoutMs);
+        timer.unref();
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+export async function buildApp(options: { roomsEnabled?: boolean; readinessChecks?: ReadinessChecks } = {}) {
+  const readinessChecks = options.readinessChecks ?? {
+    database: () => sql`SELECT 1`,
+    redis: () => redis.ping(),
+  };
   const app = Fastify({
     loggerInstance: logger as unknown as FastifyBaseLogger,
-    trustProxy: true,
+    trustProxy: config.trustProxy,
     bodyLimit: 1024 * 64,
+    forceCloseConnections: "idle",
+    return503OnClosing: true,
   });
 
   app.addContentTypeParser("application/json", { parseAs: "buffer" }, (req, body, done) => {
@@ -37,7 +62,7 @@ export async function buildApp(options: { roomsEnabled?: boolean } = {}) {
     origin: config.corsOrigins,
     credentials: true,
     methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Authorization", "Content-Type", "Accept", "X-Requested-With"],
+    allowedHeaders: ["Authorization", "Content-Type", "Accept", "X-Requested-With", "Idempotency-Key"],
     maxAge: 86400,
   });
   await app.register(helmet, {
@@ -50,20 +75,28 @@ export async function buildApp(options: { roomsEnabled?: boolean } = {}) {
   await app.register(websocket, { options: { maxPayload: 8192 } });
   await registerAuth(app);
 
-  app.get("/health", async () => ({
+  const live = () => ({
     ok: true,
     service: "bullwave-backend",
     brand: "Bullwave Games",
     gambling: false,
     time: new Date().toISOString(),
-  }));
-  app.get("/api/health", async () => ({
-    ok: true,
-    service: "bullwave-backend",
-    brand: "Bullwave Games",
-    gambling: false,
-    time: new Date().toISOString(),
-  }));
+  });
+  app.get("/health/live", async () => live());
+  app.get("/health/ready", async (_request, reply) => {
+    const [database, redisResult] = await Promise.allSettled([
+      bounded(readinessChecks.database),
+      bounded(readinessChecks.redis),
+    ]);
+    const dependencies = {
+      database: database.status === "fulfilled" ? "up" : "down",
+      redis: redisResult.status === "fulfilled" ? "up" : "down",
+    };
+    const ready = database.status === "fulfilled" && redisResult.status === "fulfilled";
+    return reply.code(ready ? 200 : 503).send({ ...live(), ok: ready, dependencies });
+  });
+  app.get("/health", async () => live());
+  app.get("/api/health", async () => live());
 
   await app.register(authRoutes);
   await app.register(billingRoutes);

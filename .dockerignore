@@ -1,0 +1,9 @@
+.git
+.env
+backend/.env
+node_modules
+backend/node_modules
+dist
+backend/dist
+.docx-work
+*.log

@@ -119,6 +119,11 @@ GRANT UPDATE (display_name, avatar_id, avatar_url, onboarding_complete)
   ON public.profiles TO authenticated;
 GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
 
+-- Grant SELECT on public.profiles to the dedicated backend database role used
+-- by DATABASE_URL. Replace bullwave_backend with that role's actual name.
+-- GRANT USAGE ON SCHEMA public TO bullwave_backend;
+-- GRANT SELECT ON public.profiles TO bullwave_backend;
+
 -- Optional identity fields for display name vs @handle (run once when ready):
 -- ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio text;
 -- ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS handle citext;

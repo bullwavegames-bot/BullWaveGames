@@ -57,6 +57,7 @@ interface AppContextValue {
   toast: (text: string, tone?: "ok" | "err" | "info") => void;
   dismissToast: (id: string) => void;
   setSelectedPlan: (plan: PlanId | null) => void;
+  syncEntitlement: (entitlement: Entitlement) => void;
   logout: () => void;
   completeOnboarding: (name: string, avatarId: string) => Promise<{ ok: true } | { ok: false; error: string }>;
   updateProfile: (name: string, avatarId: string) => Promise<{ ok: true } | { ok: false; error: string }>;
@@ -157,6 +158,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       toast,
       dismissToast: (id) => setToasts((current) => current.filter((item) => item.id !== id)),
       setSelectedPlan: (plan) => patch((current) => ({ ...current, selectedPlan: plan })),
+      syncEntitlement: (next) => patch((current) => ({
+        ...current,
+        entitlementByUser: { ...current.entitlementByUser, [identityKey]: next },
+      })),
       logout: () => {
         void auth.signOut();
       },

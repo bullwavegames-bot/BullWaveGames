@@ -1,5 +1,4 @@
 import { sql } from "../db.js";
-import { config } from "../config.js";
 import type { UserRow } from "../types.js";
 import type { SupabaseClaims } from "../lib/supabaseJwt.js";
 import { conflict, unauthorized } from "../lib/errors.js";
@@ -27,60 +26,29 @@ type ProfileRow = {
   role: "player" | "admin";
 };
 
-async function loadSupabaseProfile(claims: SupabaseClaims, accessToken: string): Promise<ProfileRow | null> {
-  if (config.supabaseAnonKey) {
-    const url = new URL(`${config.supabaseUrl}/rest/v1/profiles`);
-    url.searchParams.set("id", `eq.${claims.sub}`);
-    url.searchParams.set("select", "id,email,display_name,avatar_id,onboarding_complete,role");
-    const response = await fetch(url, {
-      headers: {
-        apikey: config.supabaseAnonKey,
-        authorization: `Bearer ${accessToken}`,
-        accept: "application/json",
-      },
-      signal: AbortSignal.timeout(5000),
-    });
-    if (response.status === 401 || response.status === 403) {
-      throw unauthorized("Sign in to continue.", "PROFILE_UNAVAILABLE");
-    }
-    if (!response.ok) return null;
-    const profiles = await response.json() as ProfileRow[];
-    return profiles[0] ?? null;
-  }
-  try {
-    const profiles = await sql<ProfileRow[]>`
-      SELECT id, email, display_name, avatar_id, onboarding_complete, role
-      FROM public.profiles WHERE id = ${claims.sub} LIMIT 1
-    `;
-    return profiles[0] ?? null;
-  } catch {
-    return null;
-  }
+export async function loadSupabaseProfile(subject: string): Promise<ProfileRow | null> {
+  const profiles = await sql<ProfileRow[]>`
+    SELECT id, email, display_name, avatar_id, onboarding_complete, role
+    FROM public.profiles WHERE id = ${subject} LIMIT 1
+  `;
+  return profiles[0] ?? null;
 }
 
-function profileFromClaims(claims: SupabaseClaims, profile: ProfileRow | null): ProfileRow {
-  const email = (profile?.email ?? claims.email ?? "").trim().toLowerCase();
-  return {
-    id: profile?.id ?? claims.sub,
-    email: email || null,
-    display_name: profile?.display_name || email.split("@")[0] || "Player",
-    avatar_id: profile?.avatar_id || "lantern",
-    onboarding_complete: profile?.onboarding_complete ?? false,
-    role: profile?.role === "admin" ? "admin" : "player",
-  };
-}
-
-export async function provisionSupabaseUser(claims: SupabaseClaims, accessToken: string): Promise<UserRow> {
-  const profile = profileFromClaims(claims, await loadSupabaseProfile(claims, accessToken));
-  const email = (profile.email ?? "").trim().toLowerCase();
+export async function provisionSupabaseUser(claims: SupabaseClaims): Promise<UserRow> {
+  const profile = await loadSupabaseProfile(claims.sub);
+  if (!profile) throw unauthorized("Complete account setup before continuing.", "PROFILE_MISSING");
+  const email = (profile.email ?? claims.email ?? "").trim().toLowerCase();
   if (!email) throw unauthorized("Your account does not have an email address.", "EMAIL_MISSING");
 
   try {
     return await sql.begin(async (tx) => {
       const existing = await tx<UserRow[]>`
-        SELECT * FROM users WHERE supabase_user_id = ${claims.sub} AND deleted_at IS NULL LIMIT 1
+        SELECT * FROM users WHERE supabase_user_id = ${claims.sub} LIMIT 1
       `;
       if (existing[0]) {
+        if (existing[0].deleted_at || existing[0].deletion_status !== "active") {
+          throw unauthorized("This account has been deleted.", "ACCOUNT_DELETED");
+        }
         const rows = await tx<UserRow[]>`
           UPDATE users SET
             email = ${email},
@@ -96,31 +64,14 @@ export async function provisionSupabaseUser(claims: SupabaseClaims, accessToken:
         return rows[0];
       }
 
-      const emailOwner = await tx<UserRow[]>`
-        SELECT * FROM users WHERE email = ${email} LIMIT 1
+      const emailOwner = await tx<{ id: string }[]>`
+        SELECT id FROM users WHERE email = ${email} LIMIT 1
       `;
       if (emailOwner[0]) {
-        if (emailOwner[0].deleted_at || emailOwner[0].supabase_user_id) {
-          throw conflict(
-            "This email belongs to an existing account and requires an explicit identity migration.",
-            "IDENTITY_LINK_REQUIRED",
-          );
-        }
-        const linked = await tx<UserRow[]>`
-          UPDATE users SET
-            auth_provider = 'supabase',
-            supabase_user_id = ${claims.sub},
-            password_hash = NULL,
-            display_name = ${profile.display_name},
-            avatar_id = ${profile.avatar_id},
-            onboarding_complete = ${profile.onboarding_complete},
-            role = ${profile.role},
-            email_verified_at = COALESCE(email_verified_at, now()),
-            updated_at = now()
-          WHERE id = ${emailOwner[0].id}
-          RETURNING *
-        `;
-        return linked[0];
+        throw conflict(
+          "This email belongs to an existing account and requires an explicit identity migration.",
+          "IDENTITY_LINK_REQUIRED",
+        );
       }
 
       const rows = await tx<UserRow[]>`
@@ -154,7 +105,7 @@ export async function provisionSupabaseUser(claims: SupabaseClaims, accessToken:
       throw conflict("This Supabase identity is already mapped.", "IDENTITY_CONFLICT");
     }
     throw error;
-  }
+}
 }
 
 export async function touchLoginStreak(userId: string, dateKey: string): Promise<void> {

@@ -19,6 +19,8 @@ export type UserRow = {
   created_at: Date;
   updated_at: Date;
   deleted_at: Date | null;
+  deletion_status: "active" | "pending" | "completed" | "failed";
+  deletion_requested_at: Date | null;
 };
 
 export type MembershipRow = {

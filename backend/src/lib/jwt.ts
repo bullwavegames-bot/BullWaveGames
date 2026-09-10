@@ -7,6 +7,7 @@ export type AccessClaims = {
   sub: string;
   role: "player" | "admin";
   jti: string;
+  iat?: number;
 };
 
 export async function signAccessToken(userId: string, role: "player" | "admin"): Promise<{ token: string; jti: string }> {
@@ -26,5 +27,5 @@ export async function verifyAccessToken(token: string): Promise<AccessClaims> {
   if (!payload.sub || (payload.role !== "player" && payload.role !== "admin") || !payload.jti) {
     throw new Error("invalid token");
   }
-  return { sub: payload.sub, role: payload.role, jti: payload.jti };
+  return { sub: payload.sub, role: payload.role, jti: payload.jti, iat: payload.iat };
 }

@@ -7,25 +7,27 @@ import { logger } from "../logger.js";
 const dir = path.join(path.dirname(fileURLToPath(import.meta.url)), "../../migrations");
 
 export async function migrate(): Promise<void> {
-  await sql`CREATE TABLE IF NOT EXISTS schema_migrations (
-    id text PRIMARY KEY,
-    applied_at timestamptz NOT NULL DEFAULT now()
-  )`;
   const files = (await readdir(dir)).filter((name) => name.endsWith(".sql")).sort();
-  const applied = await sql<{ id: string }[]>`SELECT id FROM schema_migrations`;
-  const done = new Set(applied.map((row) => row.id));
-  for (const file of files) {
-    if (done.has(file)) continue;
-    const body = await readFile(path.join(dir, file), "utf8");
-    await sql.begin(async (tx) => {
+  await sql.begin(async (tx) => {
+    await tx`SELECT pg_advisory_xact_lock(hashtext('bullwave_schema_migrations'))`;
+    await tx`CREATE TABLE IF NOT EXISTS schema_migrations (
+      id text PRIMARY KEY,
+      applied_at timestamptz NOT NULL DEFAULT now()
+    )`;
+    const applied = await tx<{ id: string }[]>`SELECT id FROM schema_migrations`;
+    const done = new Set(applied.map((row) => row.id));
+    for (const file of files) {
+      if (done.has(file)) continue;
+      const body = await readFile(path.join(dir, file), "utf8");
       await tx.unsafe(body);
       await tx`INSERT INTO schema_migrations (id) VALUES (${file})`;
-    });
-    logger.info({ file }, "migration applied");
-  }
+      logger.info({ file }, "migration applied");
+    }
+  });
 }
 
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("migrate.ts")) {
+const entrypoint = path.basename(process.argv[1] ?? "");
+if (entrypoint === "migrate.ts" || entrypoint === "migrate.js") {
   migrate()
     .then(() => sql.end())
     .catch((error) => {

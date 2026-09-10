@@ -1,10 +1,13 @@
 import { config } from "./config.js";
-import { logger } from "./logger.js";
 import { sql } from "./db.js";
+import { startWorkers } from "./jobs/workers.js";
+import { logger } from "./logger.js";
 import { connectRedis, redis, redisSub } from "./redis.js";
-import { buildApp } from "./app.js";
 
 async function main() {
+  if (config.isProd && config.serviceKind !== "worker") {
+    throw new Error("The production worker requires SERVICE_KIND=worker.");
+  }
   if (config.sentryDsn) {
     const Sentry = await import("@sentry/node");
     Sentry.init({ dsn: config.sentryDsn, environment: config.env });
@@ -14,34 +17,27 @@ async function main() {
     await connectRedis();
   } catch (error) {
     redisAvailable = false;
-    logger.warn({ err: error }, "Redis is not available; rooms and rate limits are degraded");
+    logger.warn({ err: error }, "Redis is unavailable; Redis-backed jobs are paused");
   }
-  const app = await buildApp({ roomsEnabled: redisAvailable });
-  await app.listen({ port: config.port, host: config.host });
-  logger.info({ host: config.host, port: config.port }, "Bullwave backend listening");
+  const stopWorkers = startWorkers({ redisAvailable });
+  logger.info({ redisAvailable }, "Bullwave worker started");
 
   let closing = false;
   const shutdown = async (signal: string) => {
     if (closing) return;
     closing = true;
-    logger.info({ signal }, "shutdown started");
-    const forceTimer = setTimeout(() => {
-      logger.error("graceful shutdown timed out");
-      process.exit(1);
-    }, config.shutdownTimeoutMs);
-    forceTimer.unref();
-    await app.close();
+    logger.info({ signal }, "worker shutdown started");
+    stopWorkers();
     await sql.end({ timeout: Math.max(1, Math.floor(config.shutdownTimeoutMs / 1000)) });
     redis.disconnect();
     redisSub.disconnect();
-    clearTimeout(forceTimer);
-    logger.info("shutdown complete");
+    logger.info("worker shutdown complete");
   };
   process.once("SIGINT", () => void shutdown("SIGINT"));
   process.once("SIGTERM", () => void shutdown("SIGTERM"));
 }
 
 main().catch((error) => {
-  logger.error(error, "fatal");
+  logger.error(error, "worker fatal");
   process.exit(1);
 });

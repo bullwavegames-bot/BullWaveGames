@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { verifyAccessToken } from "../lib/jwt.js";
 import { verifySupabaseAccessToken } from "../lib/supabaseJwt.js";
+import type { SupabaseClaims } from "../lib/supabaseJwt.js";
 import { findUserById, provisionSupabaseUser } from "../services/users.js";
 import { ensureGuest } from "../services/play.js";
 import { ApiError, unauthorized, forbidden } from "../lib/errors.js";
@@ -13,12 +14,16 @@ declare module "fastify" {
     authUser: AuthUser | null;
     guestId: string | null;
     rawBody?: string | Buffer;
+    authIssuedAt: number | null;
+    supabaseClaims: SupabaseClaims | null;
   }
 }
 
 export async function registerAuth(app: FastifyInstance): Promise<void> {
   app.decorateRequest("authUser", null);
   app.decorateRequest("guestId", null);
+  app.decorateRequest("authIssuedAt", null);
+  app.decorateRequest("supabaseClaims", null);
 
   app.addHook("preHandler", async (request) => {
     const header = request.headers.authorization;
@@ -28,10 +33,17 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
         const claims = config.authMode === "supabase"
           ? await verifySupabaseAccessToken(token)
           : await verifyAccessToken(token);
-        const user = config.authMode === "supabase"
-          ? await provisionSupabaseUser(claims, token)
-          : await findUserById(claims.sub);
-        if (user) request.authUser = { id: user.id, role: user.role };
+        if (config.authMode === "supabase") request.supabaseClaims = claims;
+        const isIdentityLink = request.url.startsWith("/api/auth/migrations/supabase-link");
+        const user = isIdentityLink
+          ? null
+          : config.authMode === "supabase"
+            ? await provisionSupabaseUser(claims)
+            : await findUserById(claims.sub);
+        request.authIssuedAt = typeof claims.iat === "number" ? claims.iat : null;
+        if (user) {
+          request.authUser = { id: user.id, role: user.role };
+        }
       } catch (error) {
         request.authUser = null;
         if (error instanceof ApiError) throw error;
@@ -48,6 +60,7 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
       reply.setCookie("bw_guest", request.guestId, {
         httpOnly: true,
         sameSite: "lax",
+        secure: config.isProd,
         path: "/",
         maxAge: 60 * 60 * 24 * 400,
       });
@@ -71,12 +84,14 @@ export function setAuthCookies(reply: FastifyReply, accessToken: string, refresh
   reply.setCookie("bw_access", accessToken, {
     httpOnly: true,
     sameSite: "lax",
+    secure: config.isProd,
     path: "/",
     maxAge: 15 * 60,
   });
   reply.setCookie("bw_refresh", refreshToken, {
     httpOnly: true,
     sameSite: "lax",
+    secure: config.isProd,
     path: "/",
     maxAge: 30 * 24 * 60 * 60,
   });

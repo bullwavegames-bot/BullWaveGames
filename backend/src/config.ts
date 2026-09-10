@@ -1,95 +1,130 @@
 import "dotenv/config";
 
-const env = process.env.NODE_ENV ?? "development";
-const isProd = env === "production";
-
 function normalizedUrl(value: string | undefined): string {
   return (value ?? "").trim().replace(/\/$/, "");
 }
 
-function required(name: string, fallback?: string): string {
-  const value = process.env[name] ?? fallback;
+function required(source: NodeJS.ProcessEnv, name: string, fallback?: string): string {
+  const value = source[name] ?? fallback;
   if (!value) throw new Error(`Missing environment variable ${name}`);
   return value;
 }
 
-function list(name: string, fallback: string): string[] {
-  return (process.env[name] ?? fallback)
+function list(source: NodeJS.ProcessEnv, name: string, fallback: string): string[] {
+  return (source[name] ?? fallback)
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
 }
 
-function resolveAuthMode(): "legacy" | "supabase" {
-  const mode = process.env.AUTH_MODE;
-  if (mode === "legacy" || mode === "supabase") return mode;
-  if (normalizedUrl(process.env.SUPABASE_URL)) return "supabase";
-  return isProd ? "supabase" : "legacy";
+function validateUrl(name: string, value: string, protocols: string[], productionHttps = false): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error(`${name} must be a valid URL.`);
+  }
+  if (!protocols.includes(parsed.protocol)) throw new Error(`${name} uses an unsupported protocol.`);
+  if (productionHttps && parsed.protocol !== "https:") throw new Error(`${name} must use HTTPS in production.`);
 }
 
-export const config = {
-  env,
-  isProd,
-  authMode: resolveAuthMode(),
-  supabaseUrl: normalizedUrl(process.env.SUPABASE_URL),
-  supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? "",
-  supabaseJwtAudience: process.env.SUPABASE_JWT_AUDIENCE ?? "authenticated",
-  port: Number(process.env.PORT ?? 8787),
-  host: process.env.HOST ?? "127.0.0.1",
-  appUrl: process.env.APP_URL ?? "http://localhost:5173",
-  apiUrl: process.env.API_URL ?? "http://localhost:8787",
-  corsOrigins: list(
+export function loadConfig(source: NodeJS.ProcessEnv = process.env) {
+  const env = source.NODE_ENV ?? "development";
+  const isProd = env === "production";
+  const authMode = (source.AUTH_MODE ?? (normalizedUrl(source.SUPABASE_URL) ? "supabase" : isProd ? "supabase" : "legacy")) as "legacy" | "supabase";
+  const billingMode = (source.BILLING_MODE ?? "razorpay") as "razorpay" | "local";
+  const serviceKind = (source.SERVICE_KIND ?? "api") as "api" | "worker";
+  const corsOrigins = list(
+    source,
     "CORS_ORIGINS",
     "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,https://bullwavegames.com,https://www.bullwavegames.com",
-  ),
-  databaseUrl: required("DATABASE_URL", "postgres://bullwave:bullwave@127.0.0.1:5433/bullwave"),
-  redisUrl: required("REDIS_URL", "redis://127.0.0.1:6379"),
-  jwtAccessSecret: required("JWT_ACCESS_SECRET", "dev-only-access-secret-change-me-32ch"),
-  playSessionSecret: required("PLAY_SESSION_SECRET", "dev-only-play-session-secret-32ch"),
-  sentryDsn: process.env.SENTRY_DSN ?? "",
-  mailFrom: process.env.MAIL_FROM ?? "Bullwave Games <noreply@bullwavegames.com>",
-  smtpUrl: process.env.SMTP_URL ?? "",
-  razorpay: {
-    keyId: process.env.RAZORPAY_KEY_ID ?? "",
-    keySecret: process.env.RAZORPAY_KEY_SECRET ?? "",
-    webhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET ?? "",
-    plans: {
-      wave: {
-        monthly: process.env.RAZORPAY_PLAN_WAVE_MONTHLY ?? "",
-        annual: process.env.RAZORPAY_PLAN_WAVE_ANNUAL ?? "",
-      },
-      surge: {
-        monthly: process.env.RAZORPAY_PLAN_SURGE_MONTHLY ?? "",
-        annual: process.env.RAZORPAY_PLAN_SURGE_ANNUAL ?? "",
-      },
-      tide: {
-        monthly: process.env.RAZORPAY_PLAN_TIDE_MONTHLY ?? "",
-        annual: process.env.RAZORPAY_PLAN_TIDE_ANNUAL ?? "",
+  );
+  const trustedProxies = list(source, "TRUSTED_PROXIES", "");
+  const configValue = {
+    env,
+    isProd,
+    authMode,
+    supabaseUrl: normalizedUrl(source.SUPABASE_URL),
+    supabaseAnonKey: source.SUPABASE_ANON_KEY ?? "",
+    supabaseServiceRoleKey: source.SUPABASE_SERVICE_ROLE_KEY ?? "",
+    supabaseJwtAudience: source.SUPABASE_JWT_AUDIENCE ?? "authenticated",
+    port: Number(source.PORT ?? 8787),
+    host: source.HOST ?? (isProd ? "0.0.0.0" : "127.0.0.1"),
+    appUrl: normalizedUrl(source.APP_URL ?? "http://localhost:5173"),
+    apiUrl: normalizedUrl(source.API_URL ?? "http://localhost:8787"),
+    corsOrigins,
+    trustProxy: trustedProxies.length ? trustedProxies : false,
+    databaseUrl: required(source, "DATABASE_URL", isProd ? undefined : "postgres://bullwave:bullwave@127.0.0.1:5433/bullwave"),
+    redisUrl: required(source, "REDIS_URL", isProd ? undefined : "redis://127.0.0.1:6380"),
+    jwtAccessSecret: required(source, "JWT_ACCESS_SECRET", isProd ? undefined : "dev-only-access-secret-change-me-32ch"),
+    playSessionSecret: required(source, "PLAY_SESSION_SECRET", isProd ? undefined : "dev-only-play-session-secret-32ch"),
+    sentryDsn: source.SENTRY_DSN ?? "",
+    mailFrom: source.MAIL_FROM ?? "Bullwave Games <noreply@bullwavegames.com>",
+    smtpUrl: source.SMTP_URL ?? "",
+    razorpay: {
+      keyId: source.RAZORPAY_KEY_ID ?? "",
+      keySecret: source.RAZORPAY_KEY_SECRET ?? "",
+      webhookSecret: source.RAZORPAY_WEBHOOK_SECRET ?? "",
+      plans: {
+        wave: { monthly: source.RAZORPAY_PLAN_WAVE_MONTHLY ?? "", annual: source.RAZORPAY_PLAN_WAVE_ANNUAL ?? "" },
+        surge: { monthly: source.RAZORPAY_PLAN_SURGE_MONTHLY ?? "", annual: source.RAZORPAY_PLAN_SURGE_ANNUAL ?? "" },
+        tide: { monthly: source.RAZORPAY_PLAN_TIDE_MONTHLY ?? "", annual: source.RAZORPAY_PLAN_TIDE_ANNUAL ?? "" },
       },
     },
-  },
-  graceDays: Number(process.env.GRACE_DAYS ?? 3),
-  allowDevBilling: (process.env.ALLOW_DEV_BILLING ?? "true") === "true",
-  billingMode: (process.env.BILLING_MODE ?? "razorpay") as "razorpay" | "local",
-  accessTokenTtlSec: 15 * 60,
-  refreshTokenTtlSec: 30 * 24 * 60 * 60,
-  emailTokenTtlSec: 60 * 60,
-  resetTokenTtlSec: 30 * 60,
-  freeSessionAllowance: 3,
-};
+    graceDays: Number(source.GRACE_DAYS ?? 3),
+    allowDevBilling: (source.ALLOW_DEV_BILLING ?? (isProd ? "false" : "true")) === "true",
+    billingMode,
+    serviceKind,
+    shutdownTimeoutMs: Number(source.SHUTDOWN_TIMEOUT_MS ?? 15_000),
+    accessTokenTtlSec: 15 * 60,
+    refreshTokenTtlSec: 30 * 24 * 60 * 60,
+    emailTokenTtlSec: 60 * 60,
+    resetTokenTtlSec: 30 * 60,
+    freeSessionAllowance: 3,
+  };
 
-if (config.authMode !== "legacy" && config.authMode !== "supabase") {
-  throw new Error("AUTH_MODE must be legacy or supabase.");
+  if (!Number.isInteger(configValue.port) || configValue.port < 1 || configValue.port > 65535) throw new Error("PORT must be a valid TCP port.");
+  if (!Number.isFinite(configValue.shutdownTimeoutMs) || configValue.shutdownTimeoutMs < 1000) throw new Error("SHUTDOWN_TIMEOUT_MS must be at least 1000.");
+  if (authMode !== "legacy" && authMode !== "supabase") throw new Error("AUTH_MODE must be legacy or supabase.");
+  if (authMode === "supabase" && !configValue.supabaseUrl) throw new Error("SUPABASE_URL is required when AUTH_MODE=supabase.");
+  if (billingMode !== "razorpay" && billingMode !== "local") throw new Error("BILLING_MODE must be razorpay or local.");
+  if (serviceKind !== "api" && serviceKind !== "worker") throw new Error("SERVICE_KIND must be api or worker.");
+  if (billingMode === "local" && (isProd || !configValue.allowDevBilling)) {
+    throw new Error("BILLING_MODE=local requires development mode and ALLOW_DEV_BILLING=true.");
+  }
+  validateUrl("DATABASE_URL", configValue.databaseUrl, ["postgres:", "postgresql:"]);
+  validateUrl("REDIS_URL", configValue.redisUrl, ["redis:", "rediss:"]);
+  validateUrl("APP_URL", configValue.appUrl, ["http:", "https:"], isProd);
+  validateUrl("API_URL", configValue.apiUrl, ["http:", "https:"], isProd);
+  for (const origin of corsOrigins) {
+    if (origin === "*") throw new Error("CORS_ORIGINS cannot contain a wildcard.");
+    validateUrl("CORS_ORIGINS", origin, ["http:", "https:"], isProd);
+  }
+
+  if (isProd) {
+    if (authMode !== "supabase") throw new Error("Production requires AUTH_MODE=supabase.");
+    if (!configValue.supabaseAnonKey) throw new Error("SUPABASE_ANON_KEY is required in production.");
+    if (serviceKind === "worker" && !configValue.supabaseServiceRoleKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY is required by the production worker.");
+    validateUrl("SUPABASE_URL", configValue.supabaseUrl, ["https:"], true);
+    if (trustedProxies.length === 0) throw new Error("TRUSTED_PROXIES is required in production.");
+    if (configValue.allowDevBilling) throw new Error("ALLOW_DEV_BILLING must be false in production.");
+    if (configValue.jwtAccessSecret.length < 32 || configValue.jwtAccessSecret.includes("dev-only")) throw new Error("JWT_ACCESS_SECRET must be a production secret of at least 32 characters.");
+    if (configValue.playSessionSecret.length < 32 || configValue.playSessionSecret.includes("dev-only")) throw new Error("PLAY_SESSION_SECRET must be a production secret of at least 32 characters.");
+    if (!configValue.smtpUrl) throw new Error("SMTP_URL is required in production.");
+    const billingValues = [
+      configValue.razorpay.keyId,
+      configValue.razorpay.keySecret,
+      configValue.razorpay.webhookSecret,
+      ...Object.values(configValue.razorpay.plans).flatMap((plan) => [plan.monthly, plan.annual]),
+    ];
+    if (billingMode !== "razorpay" || billingValues.some((value) => !value)) {
+      throw new Error("Production Razorpay keys, webhook secret, and all plan IDs are required.");
+    }
+  }
+  return configValue;
 }
-if (config.authMode === "supabase" && !config.supabaseUrl) {
-  throw new Error("SUPABASE_URL is required when AUTH_MODE=supabase.");
-}
-if (config.billingMode !== "razorpay" && config.billingMode !== "local") {
-  throw new Error("BILLING_MODE must be razorpay or local.");
-}
-if (config.billingMode === "local" && (config.isProd || !config.allowDevBilling)) {
-  throw new Error("BILLING_MODE=local requires development mode and ALLOW_DEV_BILLING=true.");
-}
+
+export const config = loadConfig();
 
 export type PlanId = "wave" | "surge" | "tide";
 export type BillingInterval = "monthly" | "annual";

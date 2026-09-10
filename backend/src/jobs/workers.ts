@@ -2,10 +2,24 @@ import { drainOutbox, rebuildLeaderboards } from "../services/leaderboard.js";
 import { expireGraceWindows } from "../services/membership.js";
 import { ensureDailyChallenge, sweepStaleRooms } from "../services/rooms.js";
 import { logger } from "../logger.js";
+import { processIdentityDeletionJobs } from "../services/identity.js";
+import { processWebhookEvents } from "../services/billing.js";
 
 export function startWorkers(options: { redisAvailable?: boolean } = {}): () => void {
   const redisAvailable = options.redisAvailable ?? true;
   const timers: NodeJS.Timeout[] = [];
+  let billingWebhookRun: Promise<number> | null = null;
+  const runBillingWebhooks = () => {
+    if (billingWebhookRun) return;
+    billingWebhookRun = processWebhookEvents()
+      .catch((error) => {
+        logger.warn({ err: error }, "billing webhook worker failed");
+        return 0;
+      })
+      .finally(() => {
+        billingWebhookRun = null;
+      });
+  };
   if (redisAvailable) {
     timers.push(setInterval(() => {
       void drainOutbox().catch((error) => logger.warn({ err: error }, "outbox worker failed"));
@@ -24,8 +38,16 @@ export function startWorkers(options: { redisAvailable?: boolean } = {}): () => 
   const daily = setInterval(() => {
     void ensureDailyChallenge().catch((error) => logger.warn({ err: error }, "daily challenge seed failed"));
   }, 60 * 1000);
-  timers.push(dunning, daily);
+  const identityDeletion = setInterval(() => {
+    void processIdentityDeletionJobs().catch((error) => logger.warn({ err: error }, "identity deletion worker failed"));
+  }, 15 * 1000);
+  const billingWebhooks = setInterval(() => {
+    runBillingWebhooks();
+  }, 2 * 1000);
+  timers.push(dunning, daily, identityDeletion, billingWebhooks);
   void ensureDailyChallenge().catch(() => undefined);
+  void processIdentityDeletionJobs().catch(() => undefined);
+  runBillingWebhooks();
   return () => {
     for (const timer of timers) clearInterval(timer);
   };

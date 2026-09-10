@@ -38,7 +38,7 @@ const STEPS = ["Choose a plan", "Review checkout", "Pay in INR", "Play the catal
 
 export function CheckoutPage() {
   const [params] = useSearchParams();
-  const { user, entitlement: localEntitlement } = useApp();
+  const { user, entitlement: localEntitlement, syncEntitlement } = useApp();
   const { session } = useAuth();
   const navigate = useNavigate();
   const planId = planFromQuery(params.get("plan")) ?? "wave";
@@ -139,10 +139,11 @@ export function CheckoutPage() {
     setBusy(true);
     setError("");
     try {
-      await api("/api/billing/dev/fulfill", {
+      const result = await api<{ entitlement: typeof localEntitlement }>("/api/billing/dev/fulfill", {
         method: "POST",
         body: JSON.stringify({ orderId: localOrder.orderId }),
       });
+      syncEntitlement(result.entitlement);
       navigate(`/payment-return?order=${localOrder.orderId}`);
     } catch (cause) {
       setBusy(false);

@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import crypto from "node:crypto";
 import { z } from "zod";
 import { config } from "../config.js";
 import { requireUser } from "../plugins/auth.js";
@@ -6,6 +7,7 @@ import {
   cancelRenewal,
   changePlan,
   createSubscription,
+  devCancelMembership,
   devFulfill,
   getOrder,
   handleRazorpayEvent,
@@ -33,7 +35,7 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
     configured: Boolean(config.razorpay.keyId && config.razorpay.keySecret),
     testMode: (config.razorpay.keyId ?? "").startsWith("rzp_test_"),
     keyId: config.razorpay.keyId || null,
-    autoRenewalEnabled: false,
+    autoRenewalEnabled: true,
   }));
 
   app.post("/api/billing/subscribe", async (request) => {
@@ -53,40 +55,57 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
       .object({
         planId: z.enum(["wave", "surge", "tide"]),
         billingInterval: z.enum(["monthly", "annual"]).default("monthly"),
-        autoRenew: z.boolean().default(false),
+        autoRenew: z.boolean().optional(),
       })
       .parse(request.body);
+    const suppliedKey = request.headers["idempotency-key"];
+    const rawKey = Array.isArray(suppliedKey) ? suppliedKey[0] : suppliedKey;
+    const idempotencyKey = rawKey ?? (config.billingMode === "local" && !config.isProd ? `local:${crypto.randomUUID()}` : undefined);
+    const validatedKey = z
+      .string({ required_error: "Idempotency-Key header is required." })
+      .min(16)
+      .max(128)
+      .regex(/^[A-Za-z0-9._:-]+$/, "Idempotency-Key contains unsupported characters.")
+      .parse(idempotencyKey);
     const row = await findUserById(user.id);
     const result = await createSubscription({
       userId: user.id,
       email: row?.email ?? "",
       planId: body.planId,
       billingInterval: body.billingInterval,
-      autoRenew: body.autoRenew,
+      idempotencyKey: validatedKey,
     });
     return { ok: true, ...result };
   });
 
   app.post("/api/billing/verify", async (request) => {
-    requireUser(request);
+    const user = requireUser(request);
     const body = z
       .object({
-        razorpayOrderId: z.string(),
+        razorpaySubscriptionId: z.string().min(1),
         razorpayPaymentId: z.string(),
         razorpaySignature: z.string(),
       })
       .parse(request.body);
-    await verifyCheckoutSignature(body);
+    await verifyCheckoutSignature({ userId: user.id, ...body });
     return { ok: true };
   });
 
-  app.post("/api/billing/dev/fulfill", async (request) => {
-    const user = requireUser(request);
-    const body = z.object({ orderId: z.string().uuid() }).parse(request.body);
-    await devFulfill(user.id, body.orderId);
-    const entitlement = publicEntitlement(await getMembership(user.id));
-    return { ok: true, entitlement };
-  });
+  if (!config.isProd && config.allowDevBilling && config.billingMode === "local") {
+    app.post("/api/billing/dev/fulfill", async (request) => {
+      const user = requireUser(request);
+      const body = z.object({ orderId: z.string().uuid() }).parse(request.body);
+      await devFulfill(user.id, body.orderId);
+      const entitlement = publicEntitlement(await getMembership(user.id));
+      return { ok: true, entitlement };
+    });
+
+    app.post("/api/billing/dev/cancel", async (request) => {
+      const user = requireUser(request);
+      const membership = await devCancelMembership(user.id);
+      return { ok: true, entitlement: publicEntitlement(membership) };
+    });
+  }
 
   app.get("/api/billing/orders/:id", async (request) => {
     const user = requireUser(request);
@@ -138,16 +157,19 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/api/webhooks/razorpay", {
     config: { rawBody: true },
-    handler: async (request) => {
+    handler: async (request, reply) => {
       await hitRateLimit(`rl:webhook:${request.ip}`, 120, 60);
       const raw = typeof request.rawBody === "string" ? request.rawBody : request.rawBody?.toString() ?? JSON.stringify(request.body);
       const signature = request.headers["x-razorpay-signature"];
       verifyWebhookSignature(typeof raw === "string" ? raw : String(raw), typeof signature === "string" ? signature : undefined);
       const body = request.body as { event?: string; payload?: unknown };
-      const eventId = sha256(typeof raw === "string" ? raw : JSON.stringify(body));
+      const providerEventId = request.headers["x-razorpay-event-id"];
+      const eventId = typeof providerEventId === "string" && providerEventId
+        ? providerEventId
+        : sha256(typeof raw === "string" ? raw : JSON.stringify(body));
       const eventType = String(body.event ?? "unknown");
-      await handleRazorpayEvent(eventId, eventType, body);
-      return { ok: true };
+      const queued = await handleRazorpayEvent(eventId, eventType, body);
+      return reply.code(202).send({ ok: true, queued: !queued.duplicate, duplicate: queued.duplicate });
     },
   });
 }

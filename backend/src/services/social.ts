@@ -3,6 +3,7 @@ import { sql } from "../db.js";
 import { badRequest, forbidden, notFound } from "../lib/errors.js";
 import { hitRateLimit } from "../lib/rate-limit.js";
 import { gameBySlug } from "./play.js";
+import { invalidateFriendsBoards } from "./leaderboard.js";
 
 function pair(a: string, b: string) {
   return a < b ? { low: a, high: b } : { low: b, high: a };
@@ -30,6 +31,7 @@ export async function requestFriend(fromId: string, email: string, ip?: string) 
       updated_at = now()
     WHERE friendships.status IN ('declined', 'pending')
   `;
+  await Promise.all([invalidateFriendsBoards(fromId), invalidateFriendsBoards(target[0].id)]);
   return { toUserId: target[0].id, status: "pending" };
 }
 
@@ -45,6 +47,7 @@ export async function respondFriend(userId: string, otherId: string, accept: boo
     UPDATE friendships SET status = ${status}, updated_at = now()
     WHERE user_low = ${low} AND user_high = ${high}
   `;
+  await Promise.all([invalidateFriendsBoards(userId), invalidateFriendsBoards(otherId)]);
   return { status };
 }
 

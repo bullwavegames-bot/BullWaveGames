@@ -253,21 +253,28 @@ export async function updateMe(
   if (!billingEmail.includes("@")) throw badRequest("Enter a valid billing email.");
   const autoRenew = patch.autoRenew ?? user.auto_renew;
   const onboarding = patch.onboardingComplete ?? user.onboarding_complete;
-  const rows = await sql<UserRow[]>`
-    UPDATE users SET
-      display_name = ${displayName},
-      avatar_id = ${avatarId},
-      billing_email = ${billingEmail},
-      auto_renew = ${autoRenew},
-      onboarding_complete = ${onboarding},
-      updated_at = now()
-    WHERE id = ${userId}
-    RETURNING *
-  `;
-  if (typeof patch.autoRenew === "boolean") {
-    await sql`UPDATE memberships SET auto_renew = ${patch.autoRenew}, updated_at = now() WHERE user_id = ${userId}`;
-  }
-  return publicUser(rows[0]);
+  const updated = await sql.begin(async (tx) => {
+    if (config.authMode === "supabase") {
+      await tx`
+        UPDATE public.profiles SET
+          display_name = ${displayName}, avatar_id = ${avatarId},
+          onboarding_complete = ${onboarding}, updated_at = now()
+        WHERE id = ${user.supabase_user_id}
+      `;
+    }
+    const rows = await tx<UserRow[]>`
+      UPDATE users SET
+        display_name = ${displayName}, avatar_id = ${avatarId}, billing_email = ${billingEmail},
+        auto_renew = ${autoRenew}, onboarding_complete = ${onboarding}, updated_at = now()
+      WHERE id = ${userId}
+      RETURNING *
+    `;
+    if (typeof patch.autoRenew === "boolean") {
+      await tx`UPDATE memberships SET auto_renew = ${patch.autoRenew}, updated_at = now() WHERE user_id = ${userId}`;
+    }
+    return rows[0];
+  });
+  return publicUser(updated);
 }
 
 export async function changeEmail(userId: string, email: string, ip?: string) {

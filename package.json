@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "backend": "npm run dev --prefix backend",
+    "backend:worker": "npm run dev:worker --prefix backend",
+    "backend:build": "npm run build --prefix backend",
+    "backend:typecheck": "npm run typecheck --prefix backend",
     "backend:migrate": "npm run migrate --prefix backend",
     "backend:seed": "npm run seed --prefix backend",
     "backend:test": "npm test --prefix backend",

@@ -22,11 +22,20 @@ import { findUserById } from "../services/users.js";
 import { sql } from "../db.js";
 import { clearAuthCookies, requireUser, setAuthCookies } from "../plugins/auth.js";
 import { hitRateLimit } from "../lib/rate-limit.js";
+import { config } from "../config.js";
+import { unauthorized } from "../lib/errors.js";
+import {
+  createLegacyMigrationTicket,
+  isRecentAuthentication,
+  linkLegacyIdentity,
+  requestSupabaseAccountDeletion,
+} from "../services/identity.js";
 
 const passwordSchema = z.string().min(8);
 const emailSchema = z.string().email();
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
+  if (config.authMode === "legacy") {
   app.post("/api/auth/register", async (request, reply) => {
     const body = z.object({ email: emailSchema, password: passwordSchema }).strict().parse(request.body);
     const session = await register({
@@ -100,6 +109,30 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     await changePassword(user.id, body.current, body.next);
     return { ok: true };
   });
+  }
+
+  if (config.authMode === "supabase") {
+    app.post("/api/auth/logout", async (_request, reply) => {
+      clearAuthCookies(reply);
+      return { ok: true };
+    });
+  }
+
+  app.post("/api/auth/migrations/legacy-ticket", async (request) => {
+    await hitRateLimit(`rl:identity-migration:${request.ip}`, 5, 15 * 60);
+    const body = z.object({ email: emailSchema, password: z.string().min(1) }).strict().parse(request.body);
+    return { ok: true, ...(await createLegacyMigrationTicket(body.email, body.password, request.ip)) };
+  });
+
+  app.post("/api/auth/migrations/supabase-link", async (request) => {
+    await hitRateLimit(`rl:identity-link:${request.ip}`, 10, 15 * 60);
+    if (config.authMode !== "supabase" || !request.supabaseClaims) {
+      throw unauthorized("A valid Supabase session is required.");
+    }
+    const body = z.object({ migrationTicket: z.string().min(32) }).strict().parse(request.body);
+    const linked = await linkLegacyIdentity(body.migrationTicket, request.supabaseClaims);
+    return { ok: true, user: publicUser(linked) };
+  });
 
   app.get("/api/me", async (request) => {
     const user = requireUser(request);
@@ -132,12 +165,14 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true, user: updated };
   });
 
-  app.post("/api/me/email", async (request) => {
-    const user = requireUser(request);
-    const body = z.object({ email: emailSchema }).parse(request.body);
-    await changeEmail(user.id, body.email, request.ip);
-    return { ok: true };
-  });
+  if (config.authMode === "legacy") {
+    app.post("/api/me/email", async (request) => {
+      const user = requireUser(request);
+      const body = z.object({ email: emailSchema }).parse(request.body);
+      await changeEmail(user.id, body.email, request.ip);
+      return { ok: true };
+    });
+  }
 
   app.patch("/api/me/settings", async (request) => {
     const user = requireUser(request);
@@ -174,6 +209,14 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete("/api/me", async (request, reply) => {
     const user = requireUser(request);
+    if (config.authMode === "supabase") {
+      if (!request.supabaseClaims || !isRecentAuthentication(request.authIssuedAt)) {
+        throw unauthorized("Reauthenticate before deleting this account.", "RECENT_AUTH_REQUIRED");
+      }
+      await requestSupabaseAccountDeletion(user.id, request.supabaseClaims.sub);
+      clearAuthCookies(reply);
+      return reply.code(202).send({ ok: true, status: "pending" });
+    }
     await deleteAccount(user.id);
     clearAuthCookies(reply);
     return { ok: true };

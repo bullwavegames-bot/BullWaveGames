@@ -135,6 +135,7 @@ Seeded, not user-editable except via admin **catalog** fields (names/benefits/ca
 | cancel_at_period_end | boolean | |
 | auto_renew | boolean | copied from user setting at charge time |
 | granted_by | uuid null FK users | admin grant |
+| last_billing_event_at | timestamptz null | Reject provider events older than the membership state already applied |
 
 **Access (server-only):**
 
@@ -190,6 +191,15 @@ Maps `Invoice`.
 | event_type | text | |
 | payload | jsonb | |
 | processed_at | timestamptz null | |
+| status | text | `pending`, `processing`, `completed`, `failed`, or `dead_letter` |
+| attempt_count | int | Incremented when a worker claims the event |
+| next_attempt_at | timestamptz | Exponential retry schedule |
+| processing_started_at | timestamptz null | Reclaim stale worker leases |
+| completed_at | timestamptz null | Successful atomic application |
+| last_error | text null | Bounded operations-visible failure reason |
+| occurred_at | timestamptz | Provider occurrence time used to reject stale state changes |
+
+The webhook endpoint only verifies and inserts. A separate worker claims events with `FOR UPDATE SKIP LOCKED`; the domain update and completion marker commit in one transaction. Eight failed attempts move an event to `dead_letter` for operations review.
 
 ### games
 
@@ -256,6 +266,8 @@ Append-only. Leaderboards and achievements **ignore** `accepted = false`.
 Unique `(user_id, game_id)`: `score`, `stars`, `metric`, `achieved_at`, `score_event_id`. Updated only from **accepted** events that beat the current best (`score_direction`).
 
 ### leaderboard_outbox
+
+Delivery rows also track `attempt_count`, `next_attempt_at`, `publishing_at`, and `last_error`. Workers claim bounded batches with `FOR UPDATE SKIP LOCKED`; stale claims are recoverable, and Redis is always updated from the current PostgreSQL personal best so delayed jobs cannot replace a better score.
 
 Keeps Redis ZSETs aligned with Postgres when Redis is down or a process dies mid-write.
 

@@ -7,6 +7,7 @@ import { getMembership } from "./membership.js";
 import { isMemberNow } from "../types.js";
 import { evaluateAchievements } from "./achievements.js";
 import { publishBest } from "./leaderboard.js";
+import type postgres from "postgres";
 
 type GameRow = {
   id: string;
@@ -137,22 +138,27 @@ export async function submitScore(input: {
       game_id: string;
       status: string;
       expires_at: Date;
+      started_at: Date;
     }[]
   >`
-    SELECT id, user_id, guest_id, game_id, status, expires_at
+    SELECT id, user_id, guest_id, game_id, status, expires_at, started_at
     FROM play_sessions WHERE token_hash = ${sha256(input.token)} LIMIT 1
   `;
   const session = sessions[0];
   if (!session) throw badRequest("Play session is missing or invalid.", "NO_SESSION");
   if (session.game_id !== game.id) throw badRequest("Session does not match this game.", "NO_SESSION");
-  if (input.userId && session.user_id !== input.userId) throw forbidden("Session belongs to another account.");
-  if (!input.userId && session.guest_id && input.guestId && session.guest_id !== input.guestId) {
-    throw forbidden("Session belongs to another guest.");
-  }
+  if ((session.user_id ?? null) !== (input.userId ?? null)) throw forbidden("Session belongs to another account.");
+  if (!session.user_id && (session.guest_id ?? null) !== (input.guestId ?? null)) throw forbidden("Session belongs to another guest.");
   if (session.status === "submitted") throw conflict("This session already has a score.", "REPLAY");
   if (session.status !== "open" || session.expires_at.getTime() < Date.now()) {
-    await sql`UPDATE play_sessions SET status = 'expired' WHERE id = ${session.id} AND status = 'open'`;
-    const event = await insertEvent(session, game.id, input, false, "expired_session");
+    const event = await sql.begin(async (tx) => {
+      const claimed = await tx<{ id: string }[]>`
+        UPDATE play_sessions SET status = 'expired', submitted_at = now()
+        WHERE id = ${session.id} AND status = 'open' RETURNING id
+      `;
+      if (!claimed[0]) throw conflict("This session already has a score.", "REPLAY");
+      return insertEvent(tx, session, game.id, input, false, "expired_session");
+    });
     return { accepted: false, reason: "expired_session", eventId: event.id };
   }
 
@@ -177,15 +183,26 @@ export async function submitScore(input: {
     },
     input.score,
     input.durationMs,
-  );
+  ) ?? (input.durationMs > Date.now() - session.started_at.getTime() + 5_000 ? "duration_ahead_of_session" : null);
   if (reject) {
-    await sql`UPDATE play_sessions SET status = 'rejected', submitted_at = now() WHERE id = ${session.id}`;
-    const event = await insertEvent(session, game.id, input, false, reject);
+    const event = await sql.begin(async (tx) => {
+      const claimed = await tx<{ id: string }[]>`
+        UPDATE play_sessions SET status = 'rejected', submitted_at = now()
+        WHERE id = ${session.id} AND status = 'open' RETURNING id
+      `;
+      if (!claimed[0]) throw conflict("This session already has a score.", "REPLAY");
+      return insertEvent(tx, session, game.id, input, false, reject);
+    });
     return { accepted: false, reason: reject, eventId: event.id };
   }
 
   const event = await sql.begin(async (tx) => {
-    await tx`UPDATE play_sessions SET status = 'submitted', submitted_at = now() WHERE id = ${session.id}`;
+    const claimed = await tx<{ id: string }[]>`
+      UPDATE play_sessions SET status = 'submitted', submitted_at = now()
+      WHERE id = ${session.id} AND status = 'open' AND expires_at >= now()
+      RETURNING id
+    `;
+    if (!claimed[0]) throw conflict("This session already has a score.", "REPLAY");
     const created = await tx<{ id: string }[]>`
       INSERT INTO score_events ${tx({
         play_session_id: session.id,
@@ -281,14 +298,15 @@ export async function submitScore(input: {
 }
 
 async function insertEvent(
+  tx: postgres.TransactionSql,
   session: { id: string; user_id: string | null; guest_id: string | null },
   gameId: string,
   input: { score: number; stars: number; metric?: string; durationMs: number },
   accepted: boolean,
   reason: string,
 ) {
-  const rows = await sql<{ id: string }[]>`
-    INSERT INTO score_events ${sql({
+  const rows = await tx<{ id: string }[]>`
+    INSERT INTO score_events ${tx({
       play_session_id: session.id,
       user_id: session.user_id,
       guest_id: session.guest_id,

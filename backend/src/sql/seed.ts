@@ -54,13 +54,7 @@ export async function seed(): Promise<void> {
         benefits: sql.json(["Everything in Surge", "Exclusive themes", "Tide badge", "Highest continue cap"]),
       },
     ])}
-    ON CONFLICT (id) DO UPDATE SET
-      monthly_paise = EXCLUDED.monthly_paise,
-      annual_paise = EXCLUDED.annual_paise,
-      razorpay_plan_monthly = COALESCE(EXCLUDED.razorpay_plan_monthly, plans.razorpay_plan_monthly),
-      razorpay_plan_annual = COALESCE(EXCLUDED.razorpay_plan_annual, plans.razorpay_plan_annual),
-      continue_cap = EXCLUDED.continue_cap,
-      benefits = EXCLUDED.benefits
+    ON CONFLICT (id) DO NOTHING
   `;
 
   const games = [
@@ -106,23 +100,16 @@ export async function seed(): Promise<void> {
 
   for (const game of games) {
     const { maxScore, how_to_play, controls, ...rest } = game;
-    const inserted = await sql<{ id: string }[]>`
+    await sql`
       INSERT INTO games ${sql({ ...rest, how_to_play: sql.json(how_to_play), controls: sql.json(controls) })}
-      ON CONFLICT (slug) DO UPDATE SET
-        title = EXCLUDED.title,
-        genre = EXCLUDED.genre,
-        session_minutes = EXCLUDED.session_minutes,
-        published = EXCLUDED.published
-      RETURNING id
+      ON CONFLICT (slug) DO NOTHING
     `;
-    const gameId = inserted[0].id;
+    const rows = await sql<{ id: string }[]>`SELECT id FROM games WHERE slug = ${game.slug}`;
+    const gameId = rows[0].id;
     const rules = scoreRules(game.session_minutes, maxScore);
     await sql`
       INSERT INTO game_score_rules ${sql({ game_id: gameId, ...rules })}
-      ON CONFLICT (game_id) DO UPDATE SET
-        max_score = EXCLUDED.max_score,
-        min_duration_ms = EXCLUDED.min_duration_ms,
-        max_duration_ms = EXCLUDED.max_duration_ms
+      ON CONFLICT (game_id) DO NOTHING
     `;
   }
 
@@ -191,7 +178,8 @@ export async function seed(): Promise<void> {
   logger.info("seed complete");
 }
 
-const isCli = process.argv[1] && path.basename(fileURLToPath(import.meta.url)) === path.basename(process.argv[1]);
+const entrypoint = path.basename(process.argv[1] ?? "");
+const isCli = entrypoint === "seed.ts" || entrypoint === "seed.js";
 if (isCli) {
   seed()
     .then(() => sql.end())

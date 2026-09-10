@@ -86,6 +86,10 @@ export async function attachRooms(app: FastifyInstance): Promise<void> {
 
   app.addHook("onClose", async () => {
     clearInterval(timer);
+    for (const sockets of local.values()) {
+      for (const socket of sockets) socket.close(1012, "Server restarting");
+    }
+    local.clear();
   });
 
   app.get("/rooms", { websocket: true }, (socket) => {

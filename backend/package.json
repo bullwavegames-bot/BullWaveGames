@@ -5,11 +5,22 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts",
+    "dev:worker": "tsx watch src/worker.ts",
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "start": "node dist/backend/src/index.js",
+    "start:worker": "node dist/backend/src/worker.js",
     "migrate": "tsx src/sql/migrate.ts",
+    "migrate:prod": "node dist/backend/src/sql/migrate.js",
     "seed": "tsx src/sql/seed.ts",
+    "seed:prod": "node dist/backend/src/sql/seed.js",
+    "test:integration:seed": "node scripts/verify-seed-preservation.mjs",
+    "test:integration:identity": "node scripts/verify-identity-lifecycle.mjs && node scripts/verify-supabase-routes.mjs",
+    "test:integration:billing": "npm run build && node scripts/verify-billing-integrity.mjs",
+    "test:integration:webhooks": "npm run build && node scripts/verify-billing-webhooks.mjs",
+    "test:integration:gameplay": "npm run build && node scripts/verify-gameplay-integrity.mjs",
     "promote-admin": "tsx src/cli/promote-admin.ts",
-    "test": "tsx --test src/lib/crypto.test.ts"
+    "test": "node scripts/test.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.5.0",
