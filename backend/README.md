@@ -55,7 +55,7 @@ npm run promote-admin -- operations@bullwavegames.com
 
 ## Auth
 
-Production uses Supabase access tokens. The API reads `public.profiles` through its PostgreSQL connection, so the runtime database role must have `SELECT` on that table. Keep `SUPABASE_SERVICE_ROLE_KEY` available only to the worker; it is used to complete queued identity deletions.
+Production uses Supabase access tokens. When `DATABASE_URL` includes `public.profiles` (the Supabase Postgres), the API reads that table through its PostgreSQL connection, so the runtime database role must have `SELECT` on it. Local Docker Postgres does not have that table; in that case the API falls back to the verified JWT (and Supabase REST when the anon key is set). Keep `SUPABASE_SERVICE_ROLE_KEY` available only to the worker; it is used to complete queued identity deletions.
 
 | Method | Path | Notes |
 |---|---|---|

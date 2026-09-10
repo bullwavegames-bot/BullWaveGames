@@ -4,7 +4,7 @@ import { randomToken, sha256, verifyPassword } from "../lib/crypto.js";
 import { conflict, forbidden, unauthorized } from "../lib/errors.js";
 import type { SupabaseClaims } from "../lib/supabaseJwt.js";
 import type { UserRow } from "../types.js";
-import { loadSupabaseProfile } from "./users.js";
+import { resolveSupabaseProfile } from "./users.js";
 
 const MIGRATION_TICKET_TTL_MS = 10 * 60 * 1000;
 export const RECENT_AUTH_MAX_AGE_SECONDS = 5 * 60;
@@ -44,7 +44,7 @@ export async function createLegacyMigrationTicket(emailInput: string, password: 
 }
 
 export async function linkLegacyIdentity(ticket: string, claims: SupabaseClaims) {
-  const profile = await loadSupabaseProfile(claims.sub);
+  const profile = await resolveSupabaseProfile(claims);
   if (!profile) throw unauthorized("Complete Supabase account setup before linking.", "PROFILE_MISSING");
   const profileEmail = (profile.email ?? claims.email ?? "").trim().toLowerCase();
   if (!profileEmail) throw unauthorized("The Supabase account has no verified email.", "EMAIL_MISSING");

@@ -6,7 +6,7 @@ import { signAccessToken } from "../lib/jwt.js";
 import { kolkataDateKey } from "../lib/kolkata.js";
 import { sendMail } from "../mailer.js";
 import { hitRateLimit } from "../lib/rate-limit.js";
-import { findUserByEmail, findUserById, touchLoginStreak } from "./users.js";
+import { findUserByEmail, findUserById, hasLocalProfilesTable, touchLoginStreak } from "./users.js";
 import { ensureMembership, getMembership } from "./membership.js";
 import { publicEntitlement, publicUser, type UserRow } from "../types.js";
 
@@ -254,7 +254,7 @@ export async function updateMe(
   const autoRenew = patch.autoRenew ?? user.auto_renew;
   const onboarding = patch.onboardingComplete ?? user.onboarding_complete;
   const updated = await sql.begin(async (tx) => {
-    if (config.authMode === "supabase") {
+    if (config.authMode === "supabase" && user.supabase_user_id && (await hasLocalProfilesTable())) {
       await tx`
         UPDATE public.profiles SET
           display_name = ${displayName}, avatar_id = ${avatarId},

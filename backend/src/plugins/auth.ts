@@ -38,7 +38,7 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
         const user = isIdentityLink
           ? null
           : config.authMode === "supabase"
-            ? await provisionSupabaseUser(claims)
+            ? await provisionSupabaseUser(claims, token)
             : await findUserById(claims.sub);
         request.authIssuedAt = typeof claims.iat === "number" ? claims.iat : null;
         if (user) {

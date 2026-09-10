@@ -1,3 +1,4 @@
+import { config } from "../config.js";
 import { sql } from "../db.js";
 import type { UserRow } from "../types.js";
 import type { SupabaseClaims } from "../lib/supabaseJwt.js";
@@ -26,16 +27,66 @@ type ProfileRow = {
   role: "player" | "admin";
 };
 
-export async function loadSupabaseProfile(subject: string): Promise<ProfileRow | null> {
-  const profiles = await sql<ProfileRow[]>`
-    SELECT id, email, display_name, avatar_id, onboarding_complete, role
-    FROM public.profiles WHERE id = ${subject} LIMIT 1
+let localProfilesTable: boolean | null = null;
+
+export async function hasLocalProfilesTable(): Promise<boolean> {
+  if (localProfilesTable !== null) return localProfilesTable;
+  const rows = await sql<{ exists: boolean | null }[]>`
+    SELECT to_regclass('public.profiles') IS NOT NULL AS exists
   `;
-  return profiles[0] ?? null;
+  localProfilesTable = Boolean(rows[0]?.exists);
+  return localProfilesTable;
 }
 
-export async function provisionSupabaseUser(claims: SupabaseClaims): Promise<UserRow> {
-  const profile = await loadSupabaseProfile(claims.sub);
+export function profileFromClaims(claims: SupabaseClaims): ProfileRow | null {
+  const email = typeof claims.email === "string" ? claims.email.trim().toLowerCase() : "";
+  if (!email) return null;
+  const handle = email.split("@")[0]?.slice(0, 40) || "Player";
+  return {
+    id: claims.sub,
+    email,
+    display_name: handle,
+    avatar_id: "lantern",
+    onboarding_complete: false,
+    role: "player",
+  };
+}
+
+async function fetchRemoteProfile(subject: string, accessToken?: string): Promise<ProfileRow | null> {
+  if (!accessToken || !config.supabaseUrl || !config.supabaseAnonKey) return null;
+  const url = new URL(`${config.supabaseUrl}/rest/v1/profiles`);
+  url.searchParams.set("id", `eq.${subject}`);
+  url.searchParams.set("select", "id,email,display_name,avatar_id,onboarding_complete,role");
+  const response = await fetch(url, {
+    headers: {
+      apikey: config.supabaseAnonKey,
+      Authorization: `Bearer ${accessToken}`,
+    },
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!response.ok) return null;
+  const rows = (await response.json().catch(() => null)) as ProfileRow[] | null;
+  return Array.isArray(rows) ? rows[0] ?? null : null;
+}
+
+export async function loadSupabaseProfile(subject: string, accessToken?: string): Promise<ProfileRow | null> {
+  if (await hasLocalProfilesTable()) {
+    const profiles = await sql<ProfileRow[]>`
+      SELECT id, email, display_name, avatar_id, onboarding_complete, role
+      FROM public.profiles WHERE id = ${subject} LIMIT 1
+    `;
+    return profiles[0] ?? null;
+  }
+  return fetchRemoteProfile(subject, accessToken);
+}
+
+export async function resolveSupabaseProfile(claims: SupabaseClaims, accessToken?: string): Promise<ProfileRow | null> {
+  return (await loadSupabaseProfile(claims.sub, accessToken))
+    ?? ((await hasLocalProfilesTable()) ? null : profileFromClaims(claims));
+}
+
+export async function provisionSupabaseUser(claims: SupabaseClaims, accessToken?: string): Promise<UserRow> {
+  const profile = await resolveSupabaseProfile(claims, accessToken);
   if (!profile) throw unauthorized("Complete account setup before continuing.", "PROFILE_MISSING");
   const email = (profile.email ?? claims.email ?? "").trim().toLowerCase();
   if (!email) throw unauthorized("Your account does not have an email address.", "EMAIL_MISSING");
@@ -46,7 +97,7 @@ export async function provisionSupabaseUser(claims: SupabaseClaims): Promise<Use
         SELECT * FROM users WHERE supabase_user_id = ${claims.sub} LIMIT 1
       `;
       if (existing[0]) {
-        if (existing[0].deleted_at || existing[0].deletion_status !== "active") {
+        if (existing[0].deleted_at || (existing[0].deletion_status ?? "active") !== "active") {
           throw unauthorized("This account has been deleted.", "ACCOUNT_DELETED");
         }
         const rows = await tx<UserRow[]>`
@@ -105,7 +156,7 @@ export async function provisionSupabaseUser(claims: SupabaseClaims): Promise<Use
       throw conflict("This Supabase identity is already mapped.", "IDENTITY_CONFLICT");
     }
     throw error;
-}
+  }
 }
 
 export async function touchLoginStreak(userId: string, dateKey: string): Promise<void> {
