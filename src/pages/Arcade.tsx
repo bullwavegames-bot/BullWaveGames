@@ -1,24 +1,22 @@
 import { SAMPLE_LEADERBOARD, WEEKLY_CHALLENGE, COSMETICS } from "../data/content";
-import { accessForGame, isMember } from "../lib/access";
-import { isFreeToday } from "../lib/time";
+import { accessForGame, alwaysFreeGames, isMember } from "../lib/access";
 import { useApp } from "../state/AppState";
 import { GameCard } from "../components/GameCard";
 import { PlanChip } from "../components/PlanChip";
 import { Badge, Button, ButtonLink, EmptyState, Notice } from "../components/ui";
 import { useState } from "react";
-import { todaysRotation } from "../lib/time";
 import { formatKolkata } from "../lib/time";
-import { formatInr } from "../config/product";
+import { formatInr, PRODUCT } from "../config/product";
 
 export function ArcadeHomePage() {
-  const { user, entitlement, games, store, identityKey, remainingFreeSessions } = useApp();
-  const rotation = todaysRotation();
+  const { user, entitlement, games, store, identityKey, playsUsed } = useApp();
+  const freeSet = alwaysFreeGames(games);
   const member = isMember(entitlement);
   const continueSlugs = Object.keys(store.saves)
     .filter((key) => key.startsWith(identityKey))
     .map((key) => store.saves[key]);
   const achievements = store.achievements[identityKey] ?? [];
-  const catalog = games.filter((game) => game.published);
+  const catalog = games.filter((game) => game.published && !freeSet.some((item) => item.slug === game.slug));
   return (
     <div className="section">
       <div className="wrap home-hero-band">
@@ -29,13 +27,13 @@ export function ArcadeHomePage() {
         </p>
         {member ? null : (
           <p className="meta">
-            {remainingFreeSessions} free session{remainingFreeSessions === 1 ? "" : "s"} left today. Unlock the studio from {formatInr(399)}.
+            Eight games stay free. Other titles include {PRODUCT.prototype.freePlaysPerGame} free plays, then unlock the studio from {formatInr(399)}.
           </p>
         )}
         <section style={{ marginTop: 32 }}>
-          <h2>Today’s free three</h2>
+          <h2>Always free</h2>
           <div className="grid-3">
-            {rotation.map((game) => (
+            {freeSet.map((game) => (
               <GameCard key={game.slug} game={game} />
             ))}
           </div>
@@ -47,7 +45,7 @@ export function ArcadeHomePage() {
               {continueSlugs.map((save) => {
                 const game = games.find((item) => item.slug === save.slug);
                 if (!game) return null;
-                const access = accessForGame(game, entitlement, remainingFreeSessions, isFreeToday(game.slug));
+                const access = accessForGame(game, entitlement, playsUsed(game.slug));
                 const locked = access.kind === "locked" || access.kind === "capped";
                 return (
                   <article key={save.slug} className="panel">
@@ -67,7 +65,7 @@ export function ArcadeHomePage() {
               })}
             </div>
           ) : (
-            <EmptyState title="Your arcade fills as you play. Start with today’s free three." />
+            <EmptyState title="Your arcade fills as you play. Start with an always-free game." />
           )}
         </section>
         <section style={{ marginTop: 36 }}>

@@ -1,8 +1,7 @@
 import { useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { continueCap, accessForGame } from "../lib/access";
-import { isFreeToday } from "../lib/time";
-import { formatInr } from "../config/product";
+import { formatInr, PRODUCT } from "../config/product";
 import { gameBySlug } from "../data/games";
 import { useApp } from "../state/AppState";
 import { Button, ButtonLink, Dialog } from "../components/ui";
@@ -24,7 +23,7 @@ export function GameSessionPage() {
 function GameSession() {
   const { slug = "" } = useParams();
   const navigate = useNavigate();
-  const { games, entitlement, recordResult, settings, remainingFreeSessions, consumeFreeSession, user } = useApp();
+  const { games, entitlement, recordResult, settings, consumeFreePlay, playsUsed, user } = useApp();
   const game = games.find((item) => item.slug === slug) ?? gameBySlug(slug);
   const liveRoom = ["draw-guess", "multiplayer-ludo", "live-trivia", "trivia-battle"].includes(slug);
   const [phase, setPhase] = useState<"idle" | "playing" | "paused" | "results">("idle");
@@ -46,12 +45,12 @@ function GameSession() {
     );
   }
 
-  const access = game ? accessForGame(game, entitlement, remainingFreeSessions, isFreeToday(game.slug)) : null;
+  const access = game ? accessForGame(game, entitlement, playsUsed(game.slug)) : null;
   const blocked = access?.kind === "locked" || access?.kind === "capped";
 
   const start = () => {
     if (!game || blocked) return;
-    if (access?.kind === "play-free" && !consumeFreeSession()) return;
+    if (access?.kind === "play-free" && access.remaining !== null && !consumeFreePlay(game.slug)) return;
     if (!started.current) started.current = true;
     setLoadError(false);
     setPhase("playing");
@@ -114,7 +113,12 @@ function GameSession() {
               <h1 className="display" style={{ fontSize: 32 }}>
                 Unlock the studio
               </h1>
-              <p>{access?.kind === "capped" ? "Today’s free sessions are used." : "This title is in the member catalog."} Membership starts from {formatInr(399)}.</p>
+              <p>
+                {access?.kind === "capped"
+                  ? `You’ve used ${PRODUCT.prototype.freePlaysPerGame} free plays on this title. Eight games stay free without a plan.`
+                  : "This title needs membership after the free trial."}{" "}
+                Membership starts from {formatInr(399)}.
+              </p>
               <div className="actions">
                 <ButtonLink to="/membership" variant="primary">
                   See membership

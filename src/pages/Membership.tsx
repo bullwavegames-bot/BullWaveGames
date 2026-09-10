@@ -16,7 +16,7 @@ const FAQS = [
   },
   {
     q: "What can I play without paying?",
-    a: "Today’s three free games, with a daily session cap. The full studio catalog needs Wave, Surge, or Tide.",
+    a: "Eight games stay free with no play cap. Every other title includes five free plays, then Wave, Surge, or Tide unlocks the rest of the studio.",
   },
   {
     q: "When does membership start?",
@@ -89,7 +89,7 @@ export function MembershipPage() {
   return (
     <div className="section">
       <div className="wrap">
-        <PageIntro eyebrow="Choose your wave" title="Unlock the studio." description="Today’s free rotation stays free. Membership opens the full catalog. Wave ₹399 · Surge ₹799 · Tide ₹1499.">
+        <PageIntro eyebrow="Choose your wave" title="Unlock the studio." description="Eight games stay free. Other titles include five free plays. Membership opens unlimited catalog access. Wave ₹399 · Surge ₹799 · Tide ₹1499.">
           <div className="intro-perks"><span>✦ Original games</span><span>◇ Personal touches</span><span>↗ Play in your browser</span></div>
         </PageIntro>
         {member && entitlement.planId ? (

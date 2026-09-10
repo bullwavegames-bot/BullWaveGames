@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { gameBySlug } from "../data/games";
 import { useApp } from "../state/AppState";
 import { accessForGame } from "../lib/access";
-import { isFreeToday } from "../lib/time";
 import { formatInr } from "../config/product";
 import { Badge, Button, ButtonLink, ErrorPanel, Notice } from "../components/ui";
 import { GameCard } from "../components/GameCard";
@@ -11,7 +10,7 @@ import { GameCard } from "../components/GameCard";
 export function GameDetailPage() {
   const { slug = "" } = useParams();
   const navigate = useNavigate();
-  const { games, user, bestFor, entitlement, remainingFreeSessions } = useApp();
+  const { games, user, bestFor, entitlement, playsUsed } = useApp();
   const game = games.find((item) => item.slug === slug) ?? gameBySlug(slug);
   const [accessError, setAccessError] = useState(false);
   const [trailerFail] = useState(false);
@@ -25,7 +24,7 @@ export function GameDetailPage() {
     );
   }
 
-  const access = accessForGame(game, entitlement, remainingFreeSessions, isFreeToday(game.slug));
+  const access = accessForGame(game, entitlement, playsUsed(game.slug));
   const canPlay = access.kind === "play" || access.kind === "play-free";
 
   const launch = () => {
@@ -102,7 +101,7 @@ export function GameDetailPage() {
             )}
           </div>
         ) : (
-          <Notice>Sign in to keep personal bests. Guests can play today’s free rotation, then unlock the studio from {formatInr(399)}.</Notice>
+          <Notice>Sign in to keep personal bests. Guests can play eight always-free games and five plays on other titles, then unlock the studio from {formatInr(399)}.</Notice>
         )}
         <h2 style={{ marginTop: 28 }}>Related games</h2>
         <div className="grid-3">

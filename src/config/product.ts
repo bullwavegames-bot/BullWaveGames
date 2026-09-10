@@ -13,7 +13,7 @@ export const PRODUCT = {
   currency: "INR",
   currencySymbol: "₹",
   audience: "India-first",
-  positioning: "Play every published browser game free. Membership adds optional studio perks.",
+    positioning: "Play eight always-free games anytime. Other titles include five free plays, then membership unlocks the studio.",
   timezone: "Asia/Kolkata",
   ageMinimum: 18,
   soundMutedByDefault: true,
@@ -41,8 +41,18 @@ export const PRODUCT = {
     /** Historical prototype login. Do not seed this account. Promote admins in Supabase SQL. */
     adminEmail: "operations@bullwavegames.com",
     sampleBillingDate: "2026-10-08",
-    freeDailyGameCount: 3,
-    freeSessionAllowance: 3,
+    freeDailyGameCount: 8,
+    freePlaysPerGame: 5,
+    alwaysFreeSlugs: [
+      "kite-line",
+      "lantern-path",
+      "tide-tap",
+      "sudoku",
+      "solitaire",
+      "2048",
+      "chess",
+      "snake-arena",
+    ] as const,
     continueCaps: {
       wave: 1,
       surge: 3,
@@ -95,8 +105,8 @@ export function formatInr(amount: number): string {
 }
 
 export const COMPARISON_ROWS: { feature: string; wave: string; surge: string; tide: string }[] = [
-  { feature: "Today’s free rotation", wave: "Included", surge: "Included", tide: "Included" },
-  { feature: "Full studio catalog", wave: "Yes", surge: "Yes", tide: "Yes" },
+  { feature: "Always-free games", wave: "Included", surge: "Included", tide: "Included" },
+  { feature: "Other titles", wave: "Unlimited", surge: "Unlimited", tide: "Unlimited" },
   { feature: "Ad-free access", wave: "Yes", surge: "Yes", tide: "Yes" },
   { feature: "Standard frames", wave: "Yes", surge: "Yes", tide: "Yes" },
   {

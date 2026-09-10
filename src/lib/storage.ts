@@ -34,6 +34,7 @@ export interface PersistedStore {
   billingEmails: Record<string, string>;
   profileCards: Record<string, import("../types").ProfileCard>;
   playCounts: Record<string, Record<string, number>>;
+  trialPlays: Record<string, Record<string, number>>;
   activity: Record<string, import("../types").ActivityItem[]>;
 }
 
@@ -79,6 +80,7 @@ function empty(): PersistedStore {
     billingEmails: {},
     profileCards: {},
     playCounts: {},
+    trialPlays: {},
     activity: {},
   };
 }

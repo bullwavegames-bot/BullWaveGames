@@ -2906,6 +2906,22 @@ html { scroll-behavior: smooth; scroll-padding-top: 100px; }
   perspective: 900px;
 }
 
+.welcome-free-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0 8px;
+}
+
+.welcome-free-grid .welcome-fan-card {
+  width: auto;
+  margin: 0;
+}
+
+.welcome-free-grid .welcome-fan-card img {
+  height: 110px;
+}
+
 .welcome-fan-card {
   width: min(230px, 42vw);
   margin: 0 -28px;
@@ -3141,6 +3157,9 @@ html { scroll-behavior: smooth; scroll-padding-top: 100px; }
   }
   .welcome-you {
     grid-template-columns: 1fr;
+  }
+  .welcome-free-grid {
+    grid-template-columns: 1fr 1fr;
   }
 }
 

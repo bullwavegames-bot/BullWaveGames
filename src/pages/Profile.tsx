@@ -175,7 +175,7 @@ export function ProfilePage() {
       <section>
         <h2>Recent activity</h2>
         {activity.length === 0 ? (
-          <EmptyState title="Your arcade fills as you play. Start with today’s three." />
+          <EmptyState title="Your arcade fills as you play. Start with an always-free game." />
         ) : (
           <ol className="activity-feed">
             {activity.slice(0, 12).map((item) => (
@@ -194,7 +194,7 @@ export function ProfilePage() {
       <section>
         <h2>Personal bests</h2>
         {mine.length === 0 ? (
-          <EmptyState title="Your arcade fills as you play. Start with today’s three." />
+          <EmptyState title="Your arcade fills as you play. Start with an always-free game." />
         ) : (
           <div className="profile-bests">
             {mine.map((item) => (
@@ -228,7 +228,7 @@ export function ProfilePage() {
             </>
           ) : (
             <>
-              <p>Free play — today’s three games, then unlock the studio.</p>
+              <p>Free play — eight always-free games plus five plays on other titles.</p>
               <ButtonLink to="/membership" variant="primary">
                 Subscribe from ₹399
               </ButtonLink>

@@ -240,7 +240,7 @@ export function AppShell() {
                   <Item to="/membership">Membership</Item>
                   <Item to="/login">Log in</Item>
                   <ButtonLink to="/games" variant="primary">
-                    Play today’s free games
+                    Play free games
                   </ButtonLink>
                 </nav>
               </>

@@ -2,15 +2,14 @@ import { Link } from "react-router-dom";
 import { useReducedMotion } from "framer-motion";
 import type { Game } from "../types";
 import { accessForGame, canLaunch } from "../lib/access";
-import { isFreeToday } from "../lib/time";
 import { useApp } from "../state/AppState";
 import { Badge } from "./ui";
 import { GamePreview } from "./GamePreview";
 
 export function GameCard({ game }: { game: Game }) {
   const reduce = useReducedMotion();
-  const { entitlement, remainingFreeSessions } = useApp();
-  const access = accessForGame(game, entitlement, remainingFreeSessions, isFreeToday(game.slug));
+  const { entitlement, playsUsed } = useApp();
+  const access = accessForGame(game, entitlement, playsUsed(game.slug));
   const locked = access.kind === "locked" || access.kind === "capped";
   return (
     <Link className={`card game-card ${reduce ? "no-flip" : ""} ${locked ? "is-locked" : ""}`} to={`/games/${game.slug}`}>
@@ -28,7 +27,7 @@ export function GameCard({ game }: { game: Game }) {
             <Badge tone="new">New</Badge>
           </span>
         ) : null}
-        {locked ? <div className="lock-veil">{access.kind === "capped" ? "Session used" : "Members"}</div> : null}
+        {locked ? <div className="lock-veil">{access.kind === "capped" ? "5 plays used" : "Members"}</div> : null}
       </div>
       <div className="body">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>

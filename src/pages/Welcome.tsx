@@ -3,8 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { formatInr, PLANS } from "../config/product";
 import { AVATAR_SKINS } from "../lib/avatar";
-import { allowlistReturn, planFromQuery } from "../lib/access";
-import { todaysRotation } from "../lib/time";
+import { allowlistReturn, alwaysFreeGames, planFromQuery } from "../lib/access";
 import { useApp } from "../state/AppState";
 import { useAuth } from "../state/AuthContext";
 import { PlayerAvatar } from "../components/PlayerAvatar";
@@ -38,7 +37,7 @@ export function WelcomePage() {
   const reducePref = useReducedMotion();
   const reduce = Boolean(reducePref) || settings.reducedMotion;
   const returnTo = allowlistReturn(params.get("return"), "/play");
-  const rotation = todaysRotation();
+  const rotation = alwaysFreeGames();
   const [step, setStep] = useState(1);
   const [dir, setDir] = useState(1);
   const [name, setName] = useState(user?.displayName ?? "");
@@ -196,9 +195,9 @@ export function WelcomePage() {
                   Free stays <span>free.</span>
                 </h1>
                 <p className="welcome-lede">
-                  Today’s three rotate at midnight IST. Membership unlocks the rest of the studio — Wave from {formatInr(399)} / month.
+                  Eight games stay free with no play cap. Every other title includes 5 free plays, then Wave from {formatInr(399)} / month unlocks the studio.
                 </p>
-                <div className="welcome-fan" aria-label="Today’s free games">
+                <div className="welcome-free-grid" aria-label="Always-free games">
                   {rotation.map((game, index) => (
                     <motion.button
                       key={game.slug}
@@ -206,19 +205,7 @@ export function WelcomePage() {
                       className={`welcome-fan-card${featured === index ? " is-front" : ""}`}
                       onClick={() => setFeatured(index)}
                       aria-pressed={featured === index}
-                      whileHover={motionOff ? undefined : { y: -10 }}
-                      animate={
-                        motionOff
-                          ? undefined
-                          : { y: featured === index ? -12 : [0, -6, 0], rotate: featured === index ? 0 : (index - 1) * 6 }
-                      }
-                      transition={
-                        motionOff
-                          ? undefined
-                          : featured === index
-                            ? { duration: 0.35 }
-                            : { y: { repeat: Infinity, duration: 4 + index, ease: "easeInOut" }, rotate: { duration: 0.35 } }
-                      }
+                      whileHover={motionOff ? undefined : { y: -6 }}
                     >
                       <img src={game.cover} alt="" />
                       <span>

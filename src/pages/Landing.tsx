@@ -19,8 +19,8 @@ const categories = [
   { name: "Multiplayer Party", subtitle: "Better with friends", symbol: "✦", color: "#f16f78", games: ["Draw & Guess", "Multiplayer Ludo Rooms", "Trivia Battle (1v1 or Teams)"] },
 ];
 const features = [
-  ["Today’s free rotation", "Yes", "Yes", "Yes", "Yes"],
-  ["Full studio catalog", "—", "Yes", "Yes", "Yes"],
+  ["Always-free games", "8 titles", "Included", "Included", "Included"],
+  ["Other catalog games", "5 plays each", "Unlimited", "Unlimited", "Unlimited"],
   ["Ads", "Yes", "Reduced", "Ad-free", "Ad-free"],
   ["Extra continues", "—", "Standard", "Extra", "Highest"],
   ["Early access to new releases", "—", "—", "Yes", "Yes"],
@@ -66,7 +66,7 @@ export function LandingPage() {
           </p>
           <motion.div className="actions" initial={reduce ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: reduce ? 0 : 0.24 }}>
             <ButtonLink to="/games" variant="primary">
-              Play today’s free games
+              Play free games
             </ButtonLink>
             <a className="btn btn-secondary" href="#plans">
               See membership
@@ -86,7 +86,7 @@ export function LandingPage() {
             <span key={label}>{label}</span>
           ))}
         </div>
-        <p>Bullwave Games is a browser arcade. Play today’s free rotation, then subscribe to unlock the studio. No wagering, no deposits-to-win, no cash payouts. Membership is Wave ₹399, Surge ₹799, or Tide ₹1499.</p>
+        <p>Bullwave Games is a browser arcade. Eight games stay free. Other titles include five free plays, then subscribe to unlock the studio. No wagering, no deposits-to-win, no cash payouts. Membership is Wave ₹399, Surge ₹799, or Tide ₹1499.</p>
       </Reveal>
 
       <section className="section" id="discover">
@@ -98,7 +98,7 @@ export function LandingPage() {
             </div>
             <span className="chip">36 playable games</span>
           </Reveal>
-          <p className="meta">Guests play today’s free rotation. Members unlock the full catalog. Room games need at least two connected players.</p>
+          <p className="meta">Guests get eight always-free games plus five plays on other titles. Members unlock the full catalog. Room games need at least two connected players.</p>
           <div className="category-tabs" role="tablist" aria-label="Game categories">
             {categories.map((item, index) => (
               <motion.button
@@ -202,7 +202,7 @@ export function LandingPage() {
                   <th scope="col">
                     <h3>Free</h3>
                     <div className="price">₹0</div>
-                    <p className="meta">Today’s free rotation</p>
+                    <p className="meta">Eight always-free games</p>
                     <ButtonLink to="/games">Play free</ButtonLink>
                   </th>
                   {PLANS.map((plan) => (
@@ -278,14 +278,14 @@ export function LandingPage() {
             <article>
               <span className="step-number">01</span>
               <h3>Join free</h3>
-              <p>Create an account to save progress and collection. Guests can still try today’s free games.</p>
+              <p>Create an account to save progress and collection. Guests can still play eight always-free games.</p>
               <Link to="/register">Create an account →</Link>
             </article>
             <article>
               <span className="step-number">02</span>
-              <h3>Play today’s free rotation</h3>
-              <p>Three games rotate daily. Sessions are capped. No welcome coins, no fake jackpots.</p>
-              <Link to="/games">Open today’s free games →</Link>
+              <h3>Play free, then try more</h3>
+              <p>Eight titles stay free. Other games include five plays each. No welcome coins, no fake jackpots.</p>
+              <Link to="/games">Open free games →</Link>
             </article>
             <article>
               <span className="step-number">03</span>
@@ -300,7 +300,7 @@ export function LandingPage() {
         <p className="kicker">Your next favorite break is here</p>
         <h2 className="display">A little chill. A little challenge.</h2>
         <ButtonLink to="/games" variant="primary">
-          Start with today’s free games ↗
+          Start with free games ↗
         </ButtonLink>
       </section>
     </div>

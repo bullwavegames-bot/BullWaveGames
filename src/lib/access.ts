@@ -1,5 +1,5 @@
 import { PRODUCT, PLANS, planById } from "../config/product";
-import { gameBySlug } from "../data/games";
+import { gameBySlug, GAMES } from "../data/games";
 import type { Entitlement, Game, PlanId, UserProfile } from "../types";
 
 export function isMember(entitlement: Entitlement, now = Date.now()): boolean {
@@ -16,26 +16,48 @@ export function continueCap(entitlement: Entitlement): number {
   return PRODUCT.prototype.continueCaps[entitlement.planId];
 }
 
-export type AccessState =
-  | { kind: "play-free"; label: "Play free today" }
-  | { kind: "play"; label: "Play" }
-  | { kind: "locked"; label: "Unlock with membership" }
-  | { kind: "capped"; label: "Free session used" }
-  | { kind: "maintenance"; label: "Unavailable" }
-  | { kind: "unsupported"; label: "Not supported here" };
+export const ALWAYS_FREE_SLUGS: readonly string[] = PRODUCT.prototype.alwaysFreeSlugs;
 
-export function accessForGame(
-  game: Game,
-  entitlement: Entitlement,
-  freeSessionsRemaining: number,
-  freeToday: boolean,
-): AccessState {
-  if (game.maintenance || !game.published) return { kind: "maintenance", label: "Unavailable" };
-  if (game.unsupportedNote) return { kind: "unsupported", label: "Not supported here" };
-  if (isMember(entitlement)) return { kind: "play", label: "Play" };
-  if (freeToday && freeSessionsRemaining > 0) return { kind: "play-free", label: "Play free today" };
-  if (freeToday) return { kind: "capped", label: "Free session used" };
-  return { kind: "locked", label: "Unlock with membership" };
+export function isAlwaysFree(slug: string): boolean {
+  return ALWAYS_FREE_SLUGS.includes(slug);
+}
+
+export function alwaysFreeGames(games: Game[] = GAMES): Game[] {
+  const bySlug = new Map(games.map((game) => [game.slug, game]));
+  return ALWAYS_FREE_SLUGS.map((slug) => bySlug.get(slug)).filter((game): game is Game => Boolean(game?.published && !game.maintenance));
+}
+
+export function trialPlaysUsed(counts: Record<string, number> | undefined, slug: string): number {
+  return counts?.[slug] ?? 0;
+}
+
+export function trialPlaysRemaining(counts: Record<string, number> | undefined, slug: string): number {
+  if (isAlwaysFree(slug)) return PRODUCT.prototype.freePlaysPerGame;
+  return Math.max(0, PRODUCT.prototype.freePlaysPerGame - trialPlaysUsed(counts, slug));
+}
+
+export type AccessState =
+  | { kind: "play-free"; label: string; remaining: number | null }
+  | { kind: "play"; label: "Play"; remaining: null }
+  | { kind: "locked"; label: "Unlock with membership"; remaining: 0 }
+  | { kind: "capped"; label: "5 plays used"; remaining: 0 }
+  | { kind: "maintenance"; label: "Unavailable"; remaining: null }
+  | { kind: "unsupported"; label: "Not supported here"; remaining: null };
+
+export function accessForGame(game: Game, entitlement: Entitlement, playsUsed = 0): AccessState {
+  if (game.maintenance || !game.published) return { kind: "maintenance", label: "Unavailable", remaining: null };
+  if (game.unsupportedNote) return { kind: "unsupported", label: "Not supported here", remaining: null };
+  if (isMember(entitlement)) return { kind: "play", label: "Play", remaining: null };
+  if (isAlwaysFree(game.slug)) return { kind: "play-free", label: "Always free", remaining: null };
+  const remaining = Math.max(0, PRODUCT.prototype.freePlaysPerGame - playsUsed);
+  if (remaining > 0) {
+    return {
+      kind: "play-free",
+      label: remaining === PRODUCT.prototype.freePlaysPerGame ? "5 free plays" : `${remaining} play${remaining === 1 ? "" : "s"} left`,
+      remaining,
+    };
+  }
+  return { kind: "capped", label: "5 plays used", remaining: 0 };
 }
 
 export function canLaunch(access: AccessState): boolean {

@@ -1,16 +1,16 @@
 import { Link, useParams } from "react-router-dom";
 import { SAMPLE_LEADERBOARD, WEEKLY_CHALLENGE } from "../data/content";
 import { accessForGame } from "../lib/access";
-import { formatKolkata, isFreeToday, todaysRotation } from "../lib/time";
+import { formatKolkata, todaysRotation } from "../lib/time";
 import { formatInr } from "../config/product";
 import { useApp } from "../state/AppState";
 import { GameCard } from "../components/GameCard";
 import { Button, ButtonLink, EmptyState, Notice } from "../components/ui";
 
 export function DailyChallengePage() {
-  const { entitlement, remainingFreeSessions, user } = useApp();
+  const { entitlement, playsUsed, user } = useApp();
   const daily = todaysRotation()[0];
-  const access = daily ? accessForGame(daily, entitlement, remainingFreeSessions, isFreeToday(daily.slug)) : null;
+  const access = daily ? accessForGame(daily, entitlement, playsUsed(daily.slug)) : null;
   const locked = access?.kind === "locked" || access?.kind === "capped";
   return (
     <div className="section wrap">

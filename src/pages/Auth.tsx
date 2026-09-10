@@ -64,7 +64,7 @@ export function RegisterPage() {
         ) : (
           <>
             <h1 className="display">Create account</h1>
-            <p>Join free, play today’s rotation, then unlock the studio when you are ready.</p>
+            <p>Join free, play eight always-free games, then unlock the studio when you are ready.</p>
             {configured ? null : (
               <Notice>Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to a root .env file.</Notice>
             )}

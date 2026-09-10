@@ -76,7 +76,7 @@ export function CatalogPage() {
   return (
     <div className="section">
       <div className="wrap">
-        <PageIntro eyebrow="The Bullwave arcade" title="Find your next five-minute escape." description="A little focus, a quick challenge, or a moment of calm. Find a game that fits your mood.">
+        <PageIntro eyebrow="The Bullwave arcade" title="Find your next five-minute escape." description="Eight games stay free. Other titles include five free plays, then membership unlocks unlimited catalog access.">
           <div className="intro-perks"><span>↗ Instant browser play</span><span>✦ Original worlds</span><span>✓ No cash stakes</span></div>
         </PageIntro>
         <div className="desktop-only catalog-filter-panel" style={{ marginTop: 20 }}>

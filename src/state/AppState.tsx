@@ -11,8 +11,7 @@ import { PRODUCT, planById } from "../config/product";
 import { COSMETICS } from "../data/content";
 import { GAMES } from "../data/games";
 import { emptyEntitlement, loadStore, saveStore, type PersistedStore } from "../lib/storage";
-import { isMember } from "../lib/access";
-import { kolkataDateKey } from "../lib/time";
+import { isAlwaysFree, isMember } from "../lib/access";
 import { useAuth } from "./AuthContext";
 import type {
   Entitlement,
@@ -51,8 +50,8 @@ interface AppContextValue {
   selectedPlan: PlanId | null;
   avatars: string[];
   identityKey: string;
-  remainingFreeSessions: number;
-  consumeFreeSession: () => boolean;
+  consumeFreePlay: (slug: string) => boolean;
+  playsUsed: (slug: string) => number;
   setIntroDone: () => void;
   setAge: (age: PersistedStore["age"]) => void;
   toast: (text: string, tone?: "ok" | "err" | "info") => void;
@@ -117,10 +116,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     : null;
   const identityKey = user?.id ?? `guest:${store.guestKey}`;
   const entitlement = store.entitlementByUser[identityKey] ?? emptyEntitlement();
-  const sessionDayKey = `${identityKey}:${kolkataDateKey()}`;
-  const remainingFreeSessions = isMember(entitlement)
-    ? PRODUCT.prototype.freeSessionAllowance
-    : Math.max(0, PRODUCT.prototype.freeSessionAllowance - (store.sessionDays[sessionDayKey] ?? 0));
   const settings = store.settingsByUser[identityKey] ?? defaultSettings();
   const games = store.gamesOverride.length ? [...GAMES.map(game => store.gamesOverride.find(item => item.slug === game.slug) ?? game), ...store.gamesOverride.filter(item => !GAMES.some(game => game.slug === item.slug))] : GAMES;
   const profileCard: ProfileCard = store.profileCards[identityKey] ?? {
@@ -143,18 +138,18 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       selectedPlan: store.selectedPlan,
       avatars: [...auth.avatars],
       identityKey,
-      remainingFreeSessions,
-      consumeFreeSession: () => {
-        if (isMember(entitlement)) return true;
-        const stamp = `${identityKey}:${kolkataDateKey()}`;
-        const used = store.sessionDays[stamp] ?? 0;
-        if (used >= PRODUCT.prototype.freeSessionAllowance) return false;
-        patch((current) => ({
-          ...current,
-          sessionDays: { ...current.sessionDays, [stamp]: used + 1 },
-        }));
+      consumeFreePlay: (slug) => {
+        if (isMember(entitlement) || isAlwaysFree(slug)) return true;
+        const used = store.trialPlays[identityKey]?.[slug] ?? 0;
+        if (used >= PRODUCT.prototype.freePlaysPerGame) return false;
+        patch((current) => {
+          const counts = { ...(current.trialPlays[identityKey] ?? {}) };
+          counts[slug] = (counts[slug] ?? 0) + 1;
+          return { ...current, trialPlays: { ...current.trialPlays, [identityKey]: counts } };
+        });
         return true;
       },
+      playsUsed: (slug) => store.trialPlays[identityKey]?.[slug] ?? 0,
       setIntroDone: () => {
         setIntro(true);
       },
@@ -516,7 +511,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     introDone,
     toasts,
     identityKey,
-    remainingFreeSessions,
     patch,
     toast,
     lastOrderId,
