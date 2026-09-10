@@ -20,10 +20,17 @@ function list(name: string, fallback: string): string[] {
     .filter(Boolean);
 }
 
+function resolveAuthMode(): "legacy" | "supabase" {
+  const mode = process.env.AUTH_MODE;
+  if (mode === "legacy" || mode === "supabase") return mode;
+  if (normalizedUrl(process.env.SUPABASE_URL)) return "supabase";
+  return isProd ? "supabase" : "legacy";
+}
+
 export const config = {
   env,
   isProd,
-  authMode: (process.env.AUTH_MODE ?? (isProd ? "supabase" : "legacy")) as "legacy" | "supabase",
+  authMode: resolveAuthMode(),
   supabaseUrl: normalizedUrl(process.env.SUPABASE_URL),
   supabaseAnonKey: process.env.SUPABASE_ANON_KEY ?? "",
   supabaseJwtAudience: process.env.SUPABASE_JWT_AUDIENCE ?? "authenticated",

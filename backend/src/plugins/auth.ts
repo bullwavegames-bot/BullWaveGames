@@ -3,7 +3,7 @@ import { verifyAccessToken } from "../lib/jwt.js";
 import { verifySupabaseAccessToken } from "../lib/supabaseJwt.js";
 import { findUserById, provisionSupabaseUser } from "../services/users.js";
 import { ensureGuest } from "../services/play.js";
-import { unauthorized, forbidden } from "../lib/errors.js";
+import { ApiError, unauthorized, forbidden } from "../lib/errors.js";
 import { config } from "../config.js";
 
 export type AuthUser = { id: string; role: "player" | "admin" };
@@ -33,8 +33,9 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
           : await findUserById(claims.sub);
         if (user) request.authUser = { id: user.id, role: user.role };
       } catch (error) {
-        request.log.debug({ err: error }, "authentication failed");
         request.authUser = null;
+        if (error instanceof ApiError) throw error;
+        request.log.warn({ err: error }, "authentication failed");
       }
     }
     if (request.url.startsWith("/api/play") || request.url.startsWith("/rooms")) {
