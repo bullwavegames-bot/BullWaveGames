@@ -2660,7 +2660,11 @@ html { scroll-behavior: smooth; scroll-padding-top: 100px; }
 }
 
 #account,
-#privacy {
+#privacy,
+#display,
+#audio,
+#reminders,
+#language {
   scroll-margin-top: 96px;
 }
 
@@ -4115,4 +4119,129 @@ html { scroll-behavior: smooth; scroll-padding-top: 100px; }
   .membership-steps {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+.settings-page {
+  display: grid;
+  gap: 24px;
+}
+
+.settings-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.settings-jump a {
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--mist);
+  font-size: 13px;
+}
+
+.settings-jump a:hover {
+  border-color: var(--gold-soft);
+  color: var(--white);
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-row strong {
+  display: block;
+}
+
+.settings-row small {
+  display: block;
+  margin-top: 4px;
+  color: var(--mist-dim);
+  font-size: 13px;
+}
+
+.settings-row input[type="checkbox"] {
+  appearance: none;
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  background: rgba(147, 164, 184, 0.22);
+  border: 1px solid var(--line-strong);
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.settings-row input[type="checkbox"]::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--white);
+  transition: transform 160ms ease;
+}
+
+.settings-row input[type="checkbox"]:checked {
+  background: var(--action-gradient);
+  border-color: transparent;
+}
+
+.settings-row input[type="checkbox"]:checked::after {
+  transform: translateX(18px);
+}
+
+.settings-row input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--gold-soft);
+  outline-offset: 3px;
+}
+
+.settings-subhead {
+  margin: 28px 0 8px;
+}
+
+.settings-password {
+  display: grid;
+  gap: 12px;
+  max-width: 420px;
+}
+
+.settings-reminder-choices {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.settings-choice {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.settings-choice.is-on {
+  border-color: rgba(97, 214, 176, 0.45);
+  background: rgba(97, 214, 176, 0.08);
+}
+
+.settings-choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.settings-choice span {
+  color: var(--mist);
+  font-size: 13px;
 }

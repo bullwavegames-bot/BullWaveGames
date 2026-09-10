@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { formatInr, planById, PRODUCT } from "../config/product";
 import { HELP_ARTICLES } from "../data/content";
-import { continueCap, isMember } from "../lib/access";
+import { continueCap, isMember, membershipChip } from "../lib/access";
 import { api } from "../lib/api";
 import { formatKolkata } from "../lib/time";
 import { useApp } from "../state/AppState";
@@ -329,85 +329,351 @@ export function BillingPage() {
   );
 }
 
+const REMINDER_OPTIONS = [
+  { id: "tonight" as const, hours: 4, label: "In 4 hours", hint: "A short pause later today." },
+  { id: "tomorrow" as const, hours: 24, label: "Tomorrow", hint: "Remind you in 24 hours." },
+  { id: "weekend" as const, hours: 48, label: "In two days", hint: "A longer break. Still local to this browser." },
+];
+
+function SettingToggle({
+  label,
+  hint,
+  checked,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <label className="settings-row">
+      <span>
+        <strong>{label}</strong>
+        <small>{hint}</small>
+      </span>
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+    </label>
+  );
+}
+
 export function SettingsPage() {
-  const { user, settings, patchSettings, setBreakReminder, clearBreakReminder, changePassword, deleteAccount } = useApp();
+  const {
+    user,
+    settings,
+    patchSettings,
+    setBreakReminder,
+    clearBreakReminder,
+    changePassword,
+    deleteAccount,
+    logout,
+    store,
+    entitlement,
+  } = useApp();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
   const [breakOpen, setBreakOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [reminderChoice, setReminderChoice] = useState<(typeof REMINDER_OPTIONS)[number]["id"]>(settings.reminderInterval);
   const [pwMsg, setPwMsg] = useState("");
+  const [pwError, setPwError] = useState("");
   if (!user) return <Navigate to="/login?return=/settings" replace />;
+
+  const reminder = store.breakReminder;
+  const reminderLive = Boolean(reminder && reminder.until > Date.now());
+  const reminderUntil = reminderLive && reminder
+    ? formatKolkata(new Date(reminder.until), { dateStyle: "medium", timeStyle: "short" })
+    : null;
+  const soundOn = settings.uiSound || settings.gameSound;
+  const member = isMember(entitlement);
+
+  const savePassword = () => {
+    setPwMsg("");
+    setPwError("");
+    if (next.length < 8) {
+      setPwError("Use at least 8 characters for the new password.");
+      return;
+    }
+    if (next !== confirm) {
+      setPwError("New password and confirmation do not match.");
+      return;
+    }
+    void changePassword(current, next).then((result) => {
+      if (result.ok) {
+        setPwMsg("Password saved.");
+        setCurrent("");
+        setNext("");
+        setConfirm("");
+      } else {
+        setPwError(result.error);
+      }
+    });
+  };
+
   return (
-    <div className="section wrap article">
-      <h1 className="display">Settings</h1>
-      <h2>Display</h2>
-      <label className="check">
-        <input
-          type="checkbox"
-          checked={settings.reducedMotion}
-          onChange={(event) => patchSettings({ reducedMotion: event.target.checked })}
-        />
-        Reduced motion
-      </label>
-      <h2>Audio</h2>
-      <p className="meta">Muted by default for new users. Optional studio sting plays only after you enable sound.</p>
-      <label className="check">
-        <input type="checkbox" checked={settings.uiSound} onChange={(event) => patchSettings({ uiSound: event.target.checked, soundConsent: true })} />
-        UI sound
-      </label>
-      <label className="check">
-        <input type="checkbox" checked={settings.gameSound} onChange={(event) => patchSettings({ gameSound: event.target.checked, soundConsent: true })} />
-        Game sound
-      </label>
-      <h2>Play reminders</h2>
-      <p>Reminders never close a game. They are local to this browser.</p>
-      <Button onClick={() => setBreakOpen(true)}>Take a break</Button>
-      {settings.reminderEnabled ? <Button onClick={clearBreakReminder}>Remove reminder</Button> : null}
-      <h2>Language</h2>
-      <p>English</p>
-      <h2 id="privacy">Privacy</h2>
-      <p>Your display name, handle, and bio stay on this device until Friends launches. Avatar photos are stored locally and are not uploaded yet.</p>
-      <p>
-        <Link to="/privacy-policy">Read the privacy policy</Link>
-      </p>
-      <h2 id="account">Account</h2>
-      <p>Login email {user.email}</p>
-      <Field label="Current password">
-        <TextInput type="password" value={current} onChange={(event) => setCurrent(event.target.value)} />
-      </Field>
-      <Field label="New password">
-        <TextInput type="password" value={next} onChange={(event) => setNext(event.target.value)} />
-      </Field>
-      <Button
-        onClick={() => {
-          void changePassword(current, next).then((result) => {
-            setPwMsg(result.ok ? "Password saved." : result.error);
-            if (result.ok) {
-              setCurrent("");
-              setNext("");
-            }
-          });
-        }}
+    <div className="section wrap settings-page">
+      <PageIntro
+        eyebrow="Account"
+        title="Settings."
+        description="Display, sound, reminders, and account controls for this browser. These preferences stay on this device."
       >
-        Save password
-      </Button>
-      {pwMsg ? <p>{pwMsg}</p> : null}
-      <Button variant="danger" onClick={() => setDeleteOpen(true)}>
-        Delete account
-      </Button>
+        <nav className="settings-jump" aria-label="Settings sections">
+          <a href="#display">Display</a>
+          <a href="#audio">Audio</a>
+          <a href="#reminders">Reminders</a>
+          <a href="#language">Language</a>
+          <a href="#privacy">Privacy</a>
+          <a href="#account">Account</a>
+        </nav>
+      </PageIntro>
+
+      <div className="billing-stats">
+        <article className="panel">
+          <h3>Motion</h3>
+          <p>{settings.reducedMotion ? "Reduced" : "Full"}</p>
+          <small>{settings.reducedMotion ? "Animations stay minimal" : "Studio motion is on"}</small>
+        </article>
+        <article className="panel">
+          <h3>Sound</h3>
+          <p>{soundOn ? "On" : "Muted"}</p>
+          <small>{settings.soundConsent ? "You enabled sound on this device" : "Muted by default for new users"}</small>
+        </article>
+        <article className="panel">
+          <h3>Reminder</h3>
+          <p>{reminderLive ? "Active" : "Off"}</p>
+          <small>{reminderUntil ? `Until ${reminderUntil} IST` : "Never closes a game"}</small>
+        </article>
+        <article className="panel">
+          <h3>Account</h3>
+          <p>{membershipChip(entitlement)}</p>
+          <small>{user.email}</small>
+        </article>
+      </div>
+
+      <section id="display" className="panel billing-card">
+        <div className="section-head">
+          <div>
+            <p className="kicker">Comfort</p>
+            <h2>Display</h2>
+          </div>
+        </div>
+        <SettingToggle
+          label="Reduced motion"
+          hint="Skip decorative motion on the studio shell, welcome, and game cards. Games still play."
+          checked={settings.reducedMotion}
+          onChange={(value) => patchSettings({ reducedMotion: value })}
+        />
+      </section>
+
+      <section id="audio" className="panel billing-card">
+        <div className="section-head">
+          <div>
+            <p className="kicker">Optional</p>
+            <h2>Audio</h2>
+          </div>
+          <p className="meta">Muted by default. Studio stings play only after you turn sound on.</p>
+        </div>
+        <SettingToggle
+          label="UI sound"
+          hint="Short interface cues in menus. Never required to play."
+          checked={settings.uiSound}
+          onChange={(value) => patchSettings({ uiSound: value, soundConsent: true })}
+        />
+        <SettingToggle
+          label="Game sound"
+          hint="In-session audio. You can still mute from a game’s own controls."
+          checked={settings.gameSound}
+          onChange={(value) => patchSettings({ gameSound: value, soundConsent: true })}
+        />
+        {soundOn ? (
+          <div className="challenge-hero-actions">
+            <Button
+              onClick={() => patchSettings({ uiSound: false, gameSound: false, soundConsent: true })}
+            >
+              Mute all
+            </Button>
+          </div>
+        ) : null}
+      </section>
+
+      <section id="reminders" className="panel billing-card">
+        <div className="section-head">
+          <div>
+            <p className="kicker">Play reminders</p>
+            <h2>Take a break</h2>
+          </div>
+          <p className="meta">Local to this browser. Reminders never lock the account or close a game.</p>
+        </div>
+        {reminderLive ? (
+          <p className="challenge-standing">
+            Reminder is on until {reminderUntil} IST{reminder?.label ? ` · ${reminder.label}` : ""}.
+          </p>
+        ) : (
+          <p className="meta">No reminder is set. Choose a pause if you want a nudge to step away.</p>
+        )}
+        <div className="challenge-hero-actions">
+          <Button variant="primary" onClick={() => setBreakOpen(true)}>
+            {reminderLive ? "Change reminder" : "Set a reminder"}
+          </Button>
+          {settings.reminderEnabled || reminderLive ? (
+            <Button onClick={clearBreakReminder}>Remove reminder</Button>
+          ) : null}
+        </div>
+      </section>
+
+      <section id="language" className="panel billing-card">
+        <div className="section-head">
+          <div>
+            <p className="kicker">Locale</p>
+            <h2>Language and region</h2>
+          </div>
+        </div>
+        <dl className="billing-meta">
+          <div>
+            <dt>Language</dt>
+            <dd>English</dd>
+          </div>
+          <div>
+            <dt>Region</dt>
+            <dd>India-first</dd>
+          </div>
+          <div>
+            <dt>Timezone</dt>
+            <dd>{PRODUCT.timezone} · daily reset {PRODUCT.prototype.dailyResetHourLabel} IST</dd>
+          </div>
+          <div>
+            <dt>Currency</dt>
+            <dd>{PRODUCT.currency} · membership from ₹399</dd>
+          </div>
+        </dl>
+        <p className="meta">Additional languages are not available in this release.</p>
+      </section>
+
+      <section id="privacy" className="panel billing-card">
+        <div className="section-head">
+          <div>
+            <p className="kicker">Data on this device</p>
+            <h2>Privacy</h2>
+          </div>
+        </div>
+        <ul className="challenge-rules">
+          <li>
+            <strong>Profile card stays local</strong>
+            <span>Display name, @handle, bio, and avatar photos are stored in this browser until Friends launches. Photos are not uploaded yet.</span>
+          </li>
+          <li>
+            <strong>Play history is on-device</strong>
+            <span>Personal bests, reminders, and sound preferences use local storage. They are not a public follower graph.</span>
+          </li>
+          <li>
+            <strong>Membership is a flat subscription</strong>
+            <span>No wallet, no deposits-to-win. Billing email can differ from login email.</span>
+          </li>
+        </ul>
+        <div className="challenge-hero-actions">
+          <ButtonLink to="/privacy-policy">Privacy policy</ButtonLink>
+          <ButtonLink to="/profile">Edit profile</ButtonLink>
+        </div>
+      </section>
+
+      <section id="account" className="panel billing-card">
+        <div className="section-head">
+          <div>
+            <p className="kicker">Login</p>
+            <h2>Account</h2>
+          </div>
+          <span className={`billing-pill ${user.emailVerified ? "billing-pill-paid" : "billing-pill-pending"}`}>
+            {user.emailVerified ? "Email verified" : "Verify email"}
+          </span>
+        </div>
+        <dl className="billing-meta">
+          <div>
+            <dt>Login email</dt>
+            <dd>{user.email}</dd>
+          </div>
+          <div>
+            <dt>Display name</dt>
+            <dd>{user.displayName}</dd>
+          </div>
+          <div>
+            <dt>Member since</dt>
+            <dd>{formatKolkata(new Date(user.createdAt), { dateStyle: "medium" })} IST</dd>
+          </div>
+          <div>
+            <dt>Plan</dt>
+            <dd>{member ? membershipChip(entitlement) : "Free play"}</dd>
+          </div>
+        </dl>
+        <div className="challenge-hero-actions">
+          <ButtonLink to="/billing">Billing</ButtonLink>
+          <ButtonLink to="/profile">Profile</ButtonLink>
+          <ButtonLink to="/help">Help</ButtonLink>
+          <Button onClick={() => logout()}>Log out</Button>
+        </div>
+
+        <h3 className="settings-subhead">Change password</h3>
+        <p className="meta">Use a new password of at least 8 characters. This updates your Bullwave login.</p>
+        <div className="settings-password">
+          <Field label="Current password">
+            <TextInput type="password" autoComplete="current-password" value={current} onChange={(event) => setCurrent(event.target.value)} />
+          </Field>
+          <Field label="New password">
+            <TextInput type="password" autoComplete="new-password" value={next} onChange={(event) => setNext(event.target.value)} />
+          </Field>
+          <Field label="Confirm new password">
+            <TextInput type="password" autoComplete="new-password" value={confirm} onChange={(event) => setConfirm(event.target.value)} />
+          </Field>
+        </div>
+        <div className="challenge-hero-actions">
+          <Button variant="primary" onClick={savePassword}>
+            Save password
+          </Button>
+        </div>
+        {pwMsg ? <Notice>{pwMsg}</Notice> : null}
+        {pwError ? <p className="error">{pwError}</p> : null}
+
+        <h3 className="settings-subhead">Delete account</h3>
+        <p className="meta">
+          This signs you out of this browser. Deletion does not issue a refund. Recurring billing is not enabled in this configuration.
+        </p>
+        <Button variant="danger" onClick={() => setDeleteOpen(true)}>
+          Delete account
+        </Button>
+      </section>
+
       {breakOpen ? (
         <Dialog title="Take a break" onClose={() => setBreakOpen(false)}>
-          <p>Set a local reminder to return later. This is not an account lock.</p>
+          <p>Set a local reminder to return later. This is not an account lock and it will not close a game.</p>
+          <div className="settings-reminder-choices">
+            {REMINDER_OPTIONS.map((option) => (
+              <label key={option.id} className={`settings-choice ${reminderChoice === option.id ? "is-on" : ""}`}>
+                <input
+                  type="radio"
+                  name="reminder"
+                  checked={reminderChoice === option.id}
+                  onChange={() => setReminderChoice(option.id)}
+                />
+                <strong>{option.label}</strong>
+                <span>{option.hint}</span>
+              </label>
+            ))}
+          </div>
           <div className="actions">
             <Button
               variant="primary"
               onClick={() => {
-                const result = setBreakReminder(4, "tonight");
+                const option = REMINDER_OPTIONS.find((item) => item.id === reminderChoice) ?? REMINDER_OPTIONS[0];
+                patchSettings({ reminderInterval: option.id });
+                const result = setBreakReminder(option.hours, option.label);
                 setBreakOpen(false);
-                setPwMsg(result.ok ? "Reminder saved on this browser." : result.error);
+                setPwMsg("");
+                setPwError(result.ok ? "" : result.error);
+                if (result.ok) setPwMsg("Reminder saved on this browser.");
               }}
             >
-              Set reminder
+              Save reminder
             </Button>
             <Button onClick={() => setBreakOpen(false)}>Cancel</Button>
           </div>
@@ -418,15 +684,15 @@ export function SettingsPage() {
           <p>Account {user.email}. This signs you out of this browser. Full removal from Supabase Auth still needs the studio API.</p>
           <p>Deletion does not issue a refund. Recurring billing is not enabled in this configuration.</p>
           <Field label="Re-enter password">
-            <TextInput type="password" value={current} onChange={(event) => setCurrent(event.target.value)} />
+            <TextInput type="password" autoComplete="current-password" value={deletePassword} onChange={(event) => setDeletePassword(event.target.value)} />
           </Field>
-          {pwMsg ? <p className="error">{pwMsg}</p> : null}
+          {pwError ? <p className="error">{pwError}</p> : null}
           <div className="actions">
             <Button
               variant="danger"
               onClick={() => {
-                void deleteAccount(current).then((result) => {
-                  if (!result.ok) setPwMsg(result.error);
+                void deleteAccount(deletePassword).then((result) => {
+                  if (!result.ok) setPwError(result.error);
                 });
               }}
             >
