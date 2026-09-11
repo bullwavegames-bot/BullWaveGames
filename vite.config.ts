@@ -15,10 +15,6 @@ export default defineConfig(({ mode }) => {
         target: apiTarget,
         changeOrigin: true,
         configure: (proxy) => {
-          proxy.on("proxyReq", (proxyRequest) => {
-            // Local Vite is the server-side caller; do not forward the browser Origin to Render.
-            proxyRequest.removeHeader("origin");
-          });
           proxy.on("error", (_err, _req, res) => {
             if ("headersSent" in res && res.headersSent) return;
             if ("writeHead" in res) {
