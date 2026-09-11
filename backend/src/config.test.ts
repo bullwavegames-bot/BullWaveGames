@@ -51,7 +51,20 @@ test("production uses an explicit proxy allowlist and public bind address", () =
 
 test("production rejects wildcard CORS and development billing", () => {
   assert.throws(() => loadConfig({ ...productionEnv(), CORS_ORIGINS: "*" }), /wildcard/);
+  assert.throws(() => loadConfig({ ...productionEnv(), CORS_ORIGINS: "http://example.com" }), /HTTPS/);
   assert.throws(() => loadConfig({ ...productionEnv(), ALLOW_DEV_BILLING: "true" }), /ALLOW_DEV_BILLING/);
+});
+
+test("production permits explicit loopback origins for local frontend testing", () => {
+  const value = loadConfig({
+    ...productionEnv(),
+    CORS_ORIGINS: "https://bullwavegames.com,http://localhost:5173,http://127.0.0.1:5173",
+  });
+  assert.deepEqual(value.corsOrigins, [
+    "https://bullwavegames.com",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+  ]);
 });
 
 test("only the production worker requires the Supabase service-role key", () => {

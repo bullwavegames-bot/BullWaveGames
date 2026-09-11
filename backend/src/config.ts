@@ -28,6 +28,22 @@ function validateUrl(name: string, value: string, protocols: string[], productio
   if (productionHttps && parsed.protocol !== "https:") throw new Error(`${name} must use HTTPS in production.`);
 }
 
+function validateCorsOrigin(origin: string, isProd: boolean): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(origin);
+  } catch {
+    throw new Error("CORS_ORIGINS must contain valid URLs.");
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("CORS_ORIGINS uses an unsupported protocol.");
+  }
+  const loopback = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1" || parsed.hostname === "[::1]";
+  if (isProd && parsed.protocol !== "https:" && !loopback) {
+    throw new Error("CORS_ORIGINS must use HTTPS in production except for loopback development origins.");
+  }
+}
+
 export function loadConfig(source: NodeJS.ProcessEnv = process.env) {
   const env = source.NODE_ENV ?? "development";
   const isProd = env === "production";
@@ -98,7 +114,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env) {
   validateUrl("API_URL", configValue.apiUrl, ["http:", "https:"], isProd);
   for (const origin of corsOrigins) {
     if (origin === "*") throw new Error("CORS_ORIGINS cannot contain a wildcard.");
-    validateUrl("CORS_ORIGINS", origin, ["http:", "https:"], isProd);
+    validateCorsOrigin(origin, isProd);
   }
 
   if (isProd) {
