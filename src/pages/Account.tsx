@@ -129,7 +129,7 @@ export function BillingPage() {
       <PageIntro
         eyebrow="Account"
         title="Billing."
-        description="Your membership period, receipts, and billing email. Eight games stay free even after a plan ends."
+        description="Your membership period, receipts, and billing email. Five selected games stay free after a plan ends."
       />
 
       {loadError ? <Notice>{loadError}</Notice> : null}
@@ -200,18 +200,18 @@ export function BillingPage() {
 
       <div className="billing-grid">
         <section className="panel billing-card">
-          <h2>Included in {plan ? plan.name : "free play"}</h2>
+          <h2>Included in {plan ? plan.name : "free access"}</h2>
           <ul className="billing-perks">
             {(plan?.benefits ?? [
               `${PRODUCT.prototype.freeDailyGameCount} always-free games`,
-              `${PRODUCT.prototype.freePlaysPerGame} free plays on other titles`,
+              "Membership required for other titles",
               "No wallet and no stakes",
             ]).map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>
           {member ? (
-            <p className="meta">When this period ends, always-free games stay open. Other catalog titles return to five free plays each.</p>
+            <p className="meta">When this period ends, always-free games stay open. Other catalog titles require membership.</p>
           ) : (
             <p className="meta">
               Wave {formatInr(399)}, Surge {formatInr(799)}, and Tide {formatInr(1499)} unlock unlimited catalog play.

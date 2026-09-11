@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   IconBook2,
@@ -20,6 +20,17 @@ import { useApp } from "../state/AppState";
 import { AccountMenu } from "./AccountMenu";
 import { PlanChip } from "./PlanChip";
 import { ButtonLink } from "./ui";
+
+function ScrollToTop() {
+  const location = useLocation();
+  useLayoutEffect(() => {
+    if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [location.pathname, location.search]);
+  return null;
+}
 
 function Item({ to, children, end }: { to: string; children: ReactNode; end?: boolean }) {
   return (
@@ -104,6 +115,7 @@ export function AppShell() {
 
   return (
     <div className={`shell ${playing ? "playing" : ""} ${studio ? "studio" : ""} ${reduced ? "reduce-motion" : ""}`}>
+      <ScrollToTop />
       <a className="skip" href="#main">
         Skip to content
       </a>

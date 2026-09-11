@@ -21,17 +21,6 @@ const entries: [string, string, number, string, string[]][] = [
     ],
   ],
   [
-    "spider-solitaire",
-    "Spider Solitaire",
-    0,
-    "One-suit Spider: assemble eight king-to-ace runs across ten columns.",
-    [
-      "Move descending runs onto the next higher rank or an empty column.",
-      "Deal a row from the stock only when every column has a card.",
-      "Complete king-to-ace runs clear automatically.",
-    ],
-  ],
-  [
     "rummy",
     "Rummy",
     0,
@@ -117,17 +106,6 @@ const entries: [string, string, number, string, string[]][] = [
       "Drag across letters horizontally, vertically, or diagonally.",
       "Words may run forwards or backwards.",
       "Find every word in the list to complete the puzzle.",
-    ],
-  ],
-  [
-    "match-3",
-    "Match-3",
-    1,
-    "Swap gems, create matches, and reach the target in 25 moves.",
-    [
-      "Select two neighboring gems to swap.",
-      "Only swaps forming a line of three or more spend a move.",
-      "Cascades earn extra points. Reach 1,500 points to win.",
     ],
   ],
   [
@@ -296,17 +274,6 @@ const entries: [string, string, number, string, string[]][] = [
     ],
   ],
   [
-    "territory-strategy",
-    "Turn-Based Strategy",
-    4,
-    "A compact territory-conquest game against a computer opponent.",
-    [
-      "Select one of your territories to reinforce it at the start of a turn.",
-      "Select a territory with two or more troops, then an adjacent enemy to attack.",
-      "End your turn for the computer to move. Control every territory to win.",
-    ],
-  ],
-  [
     "draw-guess",
     "Draw & Guess",
     5,
@@ -326,17 +293,6 @@ const entries: [string, string, number, string, string[]][] = [
       "Share a room code and let the host start.",
       "Roll on your turn, then select a highlighted token.",
       "The server checks moves, captures, and turns. Bring all four tokens home.",
-    ],
-  ],
-  [
-    "trivia-battle",
-    "Trivia Battle",
-    5,
-    "Challenge friends in individual or team trivia with synchronized questions.",
-    [
-      "Create or join a room and select a team if desired.",
-      "The host starts the quiz with at least two players.",
-      "Answer before the clock expires; individual and team totals update together.",
     ],
   ],
 ];

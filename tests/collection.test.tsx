@@ -19,13 +19,13 @@ import {
 } from "../shared/ludo.mjs";
 import { Chess } from "chess.js";
 
-assert.equal(COLLECTION.length, 30);
-assert.equal(new Set(GAMES.map((g) => g.slug)).size, 36);
+assert.equal(COLLECTION.length, 26);
+assert.equal(new Set(GAMES.map((g) => g.slug)).size, 28);
 assert.deepEqual(
   COLLECTION_GROUPS.map(
     (genre) => COLLECTION.filter((g) => g.genre === genre).length,
   ),
-  [6, 7, 7, 4, 3, 3],
+  [5, 6, 7, 4, 2, 2],
 );
 for (const game of COLLECTION) {
   const html = renderToString(
@@ -137,5 +137,5 @@ assert.ok(castle.moves().includes("O-O"));
 castle.move("O-O");
 assert.equal(castle.get("f1")?.type, "r");
 console.log(
-  "PASS: 30 game renders, 36 unique entries, category counts, 2048 merges, duplicate-letter scoring, matches, rummy melds, Ludo turns/captures/finish, chess mate/castling.",
+  "PASS: 26 game renders, 28 unique entries, category counts, 2048 merges, duplicate-letter scoring, matches, rummy melds, Ludo turns/captures/finish, chess mate/castling.",
 );

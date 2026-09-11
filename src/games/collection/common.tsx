@@ -24,14 +24,16 @@ export function GameFrame({
   status,
   children,
   paused,
+  className = "",
 }: {
   title: string;
   status?: ReactNode;
   children: ReactNode;
   paused: boolean;
+  className?: string;
 }) {
   return (
-    <section className="collection-game" aria-label={title}>
+    <section className={`collection-game ${className}`.trim()} aria-label={title}>
       <div className="collection-status" aria-live="polite">
         {status}
       </div>

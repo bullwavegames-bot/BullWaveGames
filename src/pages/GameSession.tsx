@@ -115,8 +115,8 @@ function GameSession() {
               </h1>
               <p>
                 {access?.kind === "capped"
-                  ? `You’ve used ${PRODUCT.prototype.freePlaysPerGame} free plays on this title. Eight games stay free without a plan.`
-                  : "This title needs membership after the free trial."}{" "}
+                  ? "This title requires a membership. Selected games remain available for free."
+                  : "This title requires a membership."}{" "}
                 Membership starts from {formatInr(399)}.
               </p>
               <div className="actions">

@@ -86,7 +86,7 @@ export function LandingPage() {
             <span key={label}>{label}</span>
           ))}
         </div>
-        <p>Bullwave Games is a browser arcade. Eight games stay free. Other titles include five free plays, then subscribe to unlock the studio. No wagering, no deposits-to-win, no cash payouts. Membership is Wave ₹399, Surge ₹799, or Tide ₹1499.</p>
+        <p>Bullwave Games is a browser arcade. Five selected games stay free, and membership unlocks the rest of the studio. No wagering, no deposits-to-win, no cash payouts. Membership is Wave ₹399, Surge ₹799, or Tide ₹1499.</p>
       </Reveal>
 
       <section className="section" id="discover">
@@ -261,11 +261,11 @@ export function LandingPage() {
           </div>
           <div className="leaderboard-teaser">
             <div>
-              <p className="kicker">Trivia Battle · Play with friends</p>
-              <h3>Who will top your room’s leaderboard?</h3>
-              <p className="meta">Create a shared quiz room and compete individually or in teams. Scores are live within your room.</p>
+              <p className="kicker">Bullwave arcade · Play your way</p>
+              <h3>Find your next favorite game.</h3>
+              <p className="meta">Browse the full arcade and jump into a focused game whenever you need a little escape.</p>
             </div>
-            <ButtonLink to="/games/trivia-battle">Explore Trivia Battle →</ButtonLink>
+            <ButtonLink to="/play">Explore the arcade →</ButtonLink>
           </div>
         </div>
       </section>

@@ -80,9 +80,9 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "playing-todays-free-games",
     title: "Playing free games",
-    shortAnswer: "Anyone can play every published game without a membership or daily session limit.",
+    shortAnswer: "Anyone can play the selected always-free games without a membership or daily session limit.",
     steps: [
-      "Open Games or Play and choose any published title.",
+      "Open Games or Play and choose a title marked Always free.",
       "Open a game and choose Play free.",
       "An account saves progress. It is not required to play as a guest.",
     ],
@@ -91,18 +91,18 @@ export const HELP_ARTICLES: HelpArticle[] = [
   {
     slug: "understanding-the-free-session-allowance",
     title: "Understanding free play",
-    shortAnswer: "Published games have no daily play allowance and do not require membership.",
+    shortAnswer: "Selected games stay free without a play allowance; other titles require membership.",
     steps: [
-      "Pick any published game from the catalog.",
-      "Play again whenever you like; there is no daily unlock limit.",
-      "Membership remains optional and adds cosmetics and convenience perks.",
+      "Pick a title marked Always free from the catalog.",
+      "Play an always-free title whenever you like; there is no daily unlock limit.",
+      "Choose a membership to unlock the rest of the catalog.",
     ],
     related: ["playing-todays-free-games", "membership-benefits"],
   },
   {
     slug: "membership-benefits",
     title: "Membership benefits",
-    shortAnswer: "Wave, Surge, and Tide add the optional benefits listed on Membership. Every published game stays free. Prices are ₹399, ₹799, and ₹1499 each month.",
+    shortAnswer: "Wave, Surge, and Tide unlock the membership catalog and add the benefits listed on Membership. Prices are ₹399, ₹799, and ₹1499 each month.",
     steps: [
       "Compare plans on the Membership page. Benefits come from one shared list.",
       "Checkout shows the selected plan, amount due, and verified renewal behavior.",

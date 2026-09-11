@@ -32,7 +32,7 @@ export function ArcadeHomePage() {
         </p>
         {member ? null : (
           <p className="meta">
-            Eight games stay free. Other titles include {PRODUCT.prototype.freePlaysPerGame} free plays, then unlock the studio from {formatInr(399)}.
+            Five selected games stay free. Membership unlocks the rest of the studio from {formatInr(399)}.
           </p>
         )}
         <section style={{ marginTop: 32 }}>

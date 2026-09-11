@@ -27,10 +27,12 @@ function PlayingCard({
   card,
   selected,
   onClick,
+  onDragStart,
 }: {
   card: Card;
   selected?: boolean;
   onClick: () => void;
+  onDragStart?: () => void;
 }) {
   return (
     <button
@@ -39,6 +41,13 @@ function PlayingCard({
         card.up ? `${rank(card.rank)} ${suits[card.suit]}` : "Face down"
       }
       aria-pressed={selected}
+      draggable={card.up}
+      onDragStart={(event) => {
+        if (!card.up) return;
+        onDragStart?.();
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", card.id.toString());
+      }}
       onClick={onClick}
     >
       {card.up ? (
@@ -214,10 +223,15 @@ export function Solitaire({
         return;
       }
       n.columns.forEach((c) => c.push({ ...n.stock.pop()!, up: true }));
-    } else if (n.stock.length) n.waste.push({ ...n.stock.pop()!, up: true });
+      setMessage("New row revealed. Drag a face-up run onto a higher card.");
+    } else if (n.stock.length) {
+      n.waste.push({ ...n.stock.pop()!, up: true });
+      setMessage("Card revealed. Drag it onto a valid column or foundation.");
+    }
     else if (n.waste.length) {
       n.stock = n.waste.reverse();
       n.waste = [];
+      setMessage("Stock recycled. Click again to reveal a card.");
     } else return;
     commit(n);
   };
@@ -227,8 +241,10 @@ export function Solitaire({
       paused={paused}
       status={`${message} · ${state.moves} moves`}
     >
+      <div className={`solitaire-shell ${spider ? "spider-shell" : ""}`}>
+      {spider && <div className="spider-hero"><div><span className="spider-eyebrow">Classic card room</span><h2>Spider Solitaire</h2><p>Build eight complete runs from king to ace.</p></div><div className="spider-progress"><strong>{state.completed}</strong><span>of 8 runs</span></div></div>}
       <div className="card-toolbar">
-        <button className="playing-card card-back" onClick={draw}>
+        <button className="playing-card card-back stock-card" onClick={draw} aria-label={state.stock.length ? "Deal next card" : "Recycle stock"}>
           {state.stock.length ? `✦ ${state.stock.length}` : "↻"}
         </button>
         {!spider &&
@@ -236,6 +252,7 @@ export function Solitaire({
             <PlayingCard
               card={state.waste.at(-1)!}
               selected={selected?.column === -1}
+              onDragStart={() => setSelected({ column: -1, index: 0 })}
               onClick={() => setSelected({ column: -1, index: 0 })}
             />
           ) : (
@@ -292,6 +309,13 @@ export function Solitaire({
             <button
               className="card-slot column-target"
               onClick={() => moveTo(i)}
+              onDragOver={(event) => {
+                if (!paused) event.preventDefault();
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                moveTo(i);
+              }}
               aria-label={`Move to column ${i + 1}`}
             >
               ↓ {i + 1}
@@ -301,6 +325,7 @@ export function Solitaire({
                 <PlayingCard
                   card={c}
                   selected={selected?.column === i && j >= selected.index}
+                  onDragStart={() => setSelected({ column: i, index: j })}
                   onClick={() => {
                     if (!c.up) return;
                     if (selected && selected.column !== i) moveTo(i);
@@ -316,6 +341,7 @@ export function Solitaire({
             ))}
           </div>
         ))}
+      </div>
       </div>
     </GameFrame>
   );
@@ -415,35 +441,38 @@ export function Rummy({ api, paused }: Props) {
     <GameFrame
       title="Rummy"
       paused={paused}
+      className="rummy-table-shell"
       status={`Ten-card meld rummy · ${state.turns} turns · ${message}`}
     >
-      <label className="game-select">Computer difficulty <select value={difficulty} onChange={(event) => setDifficulty(event.target.value as "beginner" | "standard")} disabled={state.turns > 0}><option value="beginner">Beginner</option><option value="standard">Standard</option></select></label>
-      <p>Computer: {state.bot.length} cards</p>
-      <div className="card-toolbar">
-        <button
-          className="playing-card card-back"
-          disabled={state.drawn}
-          onClick={() => draw(false)}
-        >
-          Draw
-          <br />
-          {state.stock.length}
-        </button>
-        {state.discard.length ? (
-          <PlayingCard
-            card={state.discard.at(-1)!}
-            onClick={() => draw(true)}
-          />
-        ) : (
-          <span>Discard empty</span>
-        )}
+      <div className="rummy-table">
+        <div className="rummy-opponent">
+          <span className="rummy-seat">COMPUTER · {difficulty}</span>
+          <div className="rummy-hidden-hand" aria-label={`${state.bot.length} computer cards`}>
+            {state.bot.slice(0, 5).map((card) => <span className="playing-card card-back" key={card.id} />)}
+          </div>
+          <span className="rummy-count">{state.bot.length} cards</span>
+        </div>
+        <div className="rummy-center">
+          <div className="rummy-pile">
+            <span className="rummy-pile-label">DRAW</span>
+            <button className="playing-card card-back" disabled={state.drawn} onClick={() => draw(false)} aria-label={`Draw from stock, ${state.stock.length} cards remaining`}><span className="rummy-card-action">Draw</span></button>
+            <b>{state.stock.length}</b>
+          </div>
+          <div className="rummy-discard">
+            <span className="rummy-pile-label">DISCARD</span>
+            {state.discard.length ? <PlayingCard card={state.discard.at(-1)!} onClick={() => draw(true)} /> : <span className="rummy-empty">Empty</span>}
+          </div>
+          <div className="rummy-finish-slot">FINISH<br />SLOT</div>
+        </div>
+        <div className="rummy-hand-wrap">
+          <span className="rummy-seat">YOUR HAND · {state.hand.length} CARDS</span>
+          <div className="rummy-hand">
+            {[...state.hand].map((c, i) => <PlayingCard key={c.id} card={c} onClick={() => discard(i)} />)}
+          </div>
+        </div>
       </div>
-      <div className="rummy-hand">
-        {[...state.hand].map((c, i) => (
-          <PlayingCard key={c.id} card={c} onClick={() => discard(i)} />
-        ))}
-      </div>
-      <div className="actions">
+      <div className="rummy-actions">
+        <label className="game-select">Difficulty <select value={difficulty} onChange={(event) => setDifficulty(event.target.value as "beginner" | "standard")} disabled={state.turns > 0}><option value="beginner">Beginner</option><option value="standard">Standard</option></select></label>
         <button
           className="btn btn-secondary"
           onClick={() =>

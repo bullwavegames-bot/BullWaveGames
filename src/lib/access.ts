@@ -41,7 +41,7 @@ export type AccessState =
   | { kind: "play-free"; label: string; remaining: number | null }
   | { kind: "play"; label: "Play"; remaining: null }
   | { kind: "locked"; label: "Unlock with membership"; remaining: 0 }
-  | { kind: "capped"; label: "5 plays used"; remaining: 0 }
+  | { kind: "capped"; label: "Membership required"; remaining: 0 }
   | { kind: "maintenance"; label: "Unavailable"; remaining: null }
   | { kind: "unsupported"; label: "Not supported here"; remaining: null };
 
@@ -55,11 +55,11 @@ export function accessForGame(game: Game, entitlement: Entitlement, playsUsed = 
   if (remaining > 0) {
     return {
       kind: "play-free",
-      label: remaining === PRODUCT.prototype.freePlaysPerGame ? "5 free plays" : `${remaining} play${remaining === 1 ? "" : "s"} left`,
+      label: `${remaining} free play${remaining === 1 ? "" : "s"} left`,
       remaining,
     };
   }
-  return { kind: "capped", label: "5 plays used", remaining: 0 };
+  return { kind: "capped", label: "Membership required", remaining: 0 };
 }
 
 export function canLaunch(access: AccessState): boolean {

@@ -11,7 +11,7 @@ const STEPS = ["Choose a plan", "Review checkout", "Pay in INR", "Play the catal
 const FAQS = [
   {
     q: "What can I play without paying?",
-    a: "Eight games stay free with no play cap. Every other title includes five free plays, then Wave, Surge, or Tide unlocks unlimited catalog access.",
+    a: "Five selected games stay free with no play cap. Wave, Surge, or Tide unlocks the rest of the catalog.",
   },
   {
     q: "Does this need an app?",
@@ -77,7 +77,7 @@ export function MembershipPage() {
       <PageIntro
         eyebrow="Membership"
         title="Unlock the studio."
-        description="Eight games stay free. Other titles include five free plays, then a flat INR plan opens unlimited catalog access. No wallet, no buy-in, no paid ranking."
+        description="Five selected games stay free. A flat INR plan opens the rest of the catalog. No wallet, no buy-in, no paid ranking."
       >
         <div className="challenge-pills" style={{ marginTop: 22 }}>
           <span className="billing-pill billing-pill-paid">No wallet</span>
@@ -131,7 +131,7 @@ export function MembershipPage() {
         </section>
       ) : (
         <Notice>
-          You can inspect every plan as a guest. Join from {formatInr(399)} after five free plays on catalog titles. Always-free games never lock.
+          You can inspect every plan as a guest. Join from {formatInr(399)} to unlock membership titles. Always-free games never lock.
         </Notice>
       )}
 
@@ -240,12 +240,12 @@ export function MembershipPage() {
           <h2>Still free without a plan</h2>
           <ul className="challenge-rules">
             <li>
-              <strong>Eight always-free titles</strong>
-              <span>Kite Line, Lantern Path, Tide Tap, Sudoku, Solitaire, 2048, Chess, and Snake Arena stay uncapped.</span>
+              <strong>Five always-free titles</strong>
+              <span>Sudoku, Solitaire, 2048, Chess, and Snake Arena stay uncapped.</span>
             </li>
             <li>
-              <strong>Five catalog starts</strong>
-              <span>Every other published game includes five free plays per identity, then locks until Wave, Surge, or Tide.</span>
+              <strong>Membership catalog</strong>
+              <span>Every other published game requires Wave, Surge, or Tide membership.</span>
             </li>
             <li>
               <strong>Inspect boards as a guest</strong>

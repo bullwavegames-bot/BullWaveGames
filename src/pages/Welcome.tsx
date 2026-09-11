@@ -203,7 +203,7 @@ export function WelcomePage() {
                     Free stays <span>free.</span>
                   </h1>
                   <p className="welcome-lede">
-                    Eight games stay free with no play cap. Every other title includes 5 free plays, then Wave from {formatInr(399)} / month unlocks the studio.
+                    Five selected games stay free with no play cap. Wave from {formatInr(399)} / month unlocks the rest of the studio.
                   </p>
                 </div>
                 {star ? (
