@@ -14,6 +14,7 @@
     "backend:test": "npm test --prefix backend",
     "test:games": "node tests/run.mjs && node tests/rooms.test.mjs",
     "build": "tsc --noEmit && vite build",
+    "start": "vite preview --host 0.0.0.0 --port ${PORT:-4173}",
     "preview": "vite preview"
   },
   "dependencies": {
