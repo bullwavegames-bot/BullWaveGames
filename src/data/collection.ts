@@ -296,15 +296,11 @@ const entries: [string, string, number, string, string[]][] = [
     ],
   ],
 ];
-const glyphs = ["♠", "▦", "↗", "?", "♜", "✦"];
-const colors = [
-  "#d5aa50",
-  "#61d6b0",
-  "#43c7e8",
-  "#a66acb",
-  "#f1ad78",
-  "#f16f78",
-];
+
+function coverFor(slug: string) {
+  return `/covers/collection-${slug}-cover.png`;
+}
+
 export const COLLECTION: Game[] = entries.map(
   ([slug, title, group, description, howToPlay]) => ({
     id: slug,
@@ -315,9 +311,9 @@ export const COLLECTION: Game[] = entries.map(
     fantasy: description,
     description,
     howToPlay,
-    cover: `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="480" height="360" viewBox="0 0 480 360"><defs><radialGradient id="g"><stop stop-color="${colors[group]}" stop-opacity=".3"/><stop offset="1" stop-color="#142233"/></radialGradient></defs><rect width="480" height="360" fill="url(#g)"/><rect x="42" y="38" width="396" height="284" rx="24" fill="none" stroke="${colors[group]}" stroke-opacity=".4"/><text x="240" y="215" text-anchor="middle" font-size="145" fill="${colors[group]}" font-family="Segoe UI Symbol, sans-serif">${glyphs[group]}</text></svg>`)}`,
-    coverAlt: title,
-    previewAlt: title,
+    cover: coverFor(slug),
+    coverAlt: `${title} cover artwork`,
+    previewAlt: `${title} cover artwork`,
     controls: {
       desktop: [howToPlay[0], "Use the Pause button to pause solo play."],
       touch: ["Tap the game controls; drag where indicated."],

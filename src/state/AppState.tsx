@@ -10,6 +10,7 @@ import {
 import { PRODUCT, planById } from "../config/product";
 import { COSMETICS } from "../data/content";
 import { GAMES } from "../data/games";
+import { api } from "../lib/api";
 import { emptyEntitlement, loadStore, saveStore, type PersistedStore } from "../lib/storage";
 import { isAlwaysFree, isMember } from "../lib/access";
 import { useAuth } from "./AuthContext";
@@ -101,6 +102,23 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     saveStore(store);
   }, [store]);
+
+  useEffect(() => {
+    if (!auth.session?.user) return;
+    let active = true;
+    void api<{ entitlement: Entitlement }>("/api/me")
+      .then((result) => {
+        if (!active) return;
+        setStore((current) => ({
+          ...current,
+          entitlementByUser: { ...current.entitlementByUser, [auth.session!.user.id]: result.entitlement },
+        }));
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [auth.session?.user.id]);
 
   const patch = useCallback((updater: (current: PersistedStore) => PersistedStore) => {
     setStore((current) => updater(current));

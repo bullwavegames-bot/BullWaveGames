@@ -65,7 +65,7 @@ function circle(
   x: number,
   y: number,
   r: number,
-  color: string,
+  color: string | CanvasGradient | CanvasPattern,
 ) {
   ctx.fillStyle = color;
   ctx.beginPath();
@@ -663,40 +663,73 @@ export function Carrom({ api, paused }: Props) {
           );
         }
       }
-      c.fillStyle = "#a5793f";
+      // Layered wood board inspired by a classic tournament carrom set.
+      const wood = c.createLinearGradient?.(0, 0, 480, 480);
+      if (wood) { wood.addColorStop(0, "#4a2b22"); wood.addColorStop(0.5, "#8b5540"); wood.addColorStop(1, "#35201c"); }
+      c.fillStyle = wood ?? "#6b4036";
       c.fillRect(0, 0, 480, 480);
-      c.fillStyle = "#e1bd79";
-      c.fillRect(20, 20, 440, 440);
-      c.strokeStyle = "#724728";
+      c.save();
+      c.globalAlpha = 0.12;
+      c.strokeStyle = "#f6c9a7";
+      c.lineWidth = 1;
+      for (let i = -480; i < 900; i += 9) {
+        c.beginPath();
+        c.moveTo(i, 0);
+        c.bezierCurveTo(i + 80, 110, i - 60, 260, i + 20, 480);
+        c.stroke();
+      }
+      c.restore();
+      c.fillStyle = "#c8876f";
+      c.fillRect(18, 18, 444, 444);
+      const court = c.createRadialGradient?.(240, 180, 40, 240, 240, 330);
+      if (court) { court.addColorStop(0, "#f5c5ad"); court.addColorStop(1, "#c98771"); }
+      c.fillStyle = court ?? "#dfaa91";
+      c.fillRect(28, 28, 424, 424);
+      c.strokeStyle = "#6d4038";
+      c.lineWidth = 4;
+      c.strokeRect(78, 78, 324, 324);
       c.lineWidth = 3;
-      c.strokeRect(70, 70, 340, 340);
-      for (const x of [28, 452])
-        for (const y of [28, 452]) circle(c, x, y, 22, "#0b121c");
+      c.strokeRect(100, 100, 280, 280);
+      c.strokeStyle = "#8e5948";
+      c.lineWidth = 2;
       c.beginPath();
-      c.arc(240, 240, 55, 0, Math.PI * 2);
+      c.moveTo(115, 95); c.lineTo(365, 95);
+      c.moveTo(115, 385); c.lineTo(365, 385);
+      c.moveTo(95, 115); c.lineTo(95, 365);
+      c.moveTo(385, 115); c.lineTo(385, 365);
       c.stroke();
+      for (const x of [28, 452]) for (const y of [28, 452]) {
+        const pocket = c.createRadialGradient?.(x - 5, y - 6, 2, x, y, 25);
+        if (pocket) { pocket.addColorStop(0, "#2f2528"); pocket.addColorStop(0.72, "#0d1016"); pocket.addColorStop(1, "#6b4036"); }
+        circle(c, x, y, 24, pocket ?? "#171318");
+        c.strokeStyle = "#392326"; c.lineWidth = 3;
+        c.beginPath(); c.arc(x, y, 20, 0, Math.PI * 2); c.stroke();
+      }
+      c.strokeStyle = "#674038";
+      c.lineWidth = 3;
+      c.beginPath(); c.arc(240, 240, 55, 0, Math.PI * 2); c.stroke();
+      c.beginPath(); c.arc(240, 240, 43, 0, Math.PI * 2); c.stroke();
+      for (const [x, y] of [[120, 95], [360, 95], [120, 385], [360, 385], [95, 120], [385, 120], [95, 360], [385, 360]]) {
+        circle(c, x, y, 13, "#db7466");
+        c.strokeStyle = "#70463c"; c.lineWidth = 3;
+        c.beginPath(); c.arc(x, y, 13, 0, Math.PI * 2); c.stroke();
+      }
       s.discs.forEach((d, i) => {
         if (!d.gone) {
-          circle(
-            c,
-            d.x,
-            d.y,
-            d.r,
-            i === 0
-              ? "#43c7e8"
-              : d.queen
-                ? "#ba3449"
-                : i % 2
-                  ? "#263244"
-                  : "#fff1c5",
-          );
+          const fill = i === 0 ? "#e7e2d9" : d.queen ? "#e3222c" : i % 2 ? "#26282b" : "#f8f4ec";
+          const glow = c.createRadialGradient?.(d.x - d.r * .35, d.y - d.r * .4, 1, d.x, d.y, d.r * 1.25);
+          if (glow) { glow.addColorStop(0, i === 0 ? "#ffffff" : d.queen ? "#ff6a63" : i % 2 ? "#777" : "#fff" ); glow.addColorStop(0.38, fill); glow.addColorStop(1, i === 0 ? "#98928a" : d.queen ? "#9d1019" : i % 2 ? "#08090a" : "#b8b0a6"); }
+          c.save(); c.shadowColor = "rgba(50,20,15,.55)"; c.shadowBlur = 5; c.shadowOffsetY = 3;
+          circle(c, d.x, d.y, d.r, glow ?? fill); c.restore();
+          c.strokeStyle = i === 0 ? "#6b6661" : d.queen ? "#7f1118" : "#4b4642";
+          c.lineWidth = 1.5; c.beginPath(); c.arc(d.x, d.y, d.r - 1, 0, Math.PI * 2); c.stroke();
         }
       });
       if (s.aim) {
         c.beginPath();
         c.moveTo(s.discs[0].x, s.discs[0].y);
         c.lineTo(s.aim.x, s.aim.y);
-        c.stroke();
+        c.strokeStyle = "rgba(102,43,35,.85)"; c.lineWidth = 2; c.setLineDash([7, 7]); c.stroke(); c.setLineDash([]);
       }
     },
     1000 / 30,
@@ -704,15 +737,15 @@ export function Carrom({ api, paused }: Props) {
   );
   return (
     <GameFrame title="Carrom" paused={paused} status={status}>
-      <p className="meta">
+      <div className="carrom-intro"><span className="carrom-eyebrow">Classic board · precision play</span><h2>Carrom Royale</h2><p className="meta">
         Solo pocket-all variant · Queen counts as a coin; no cover rule.
-      </p>
+      </p></div>
       <label className="game-select">Difficulty <select value={difficulty} disabled={g.current.shots > 0} onChange={(event) => setDifficulty(event.target.value as typeof difficulty)}><option value="practice">Practice · larger pockets</option><option value="standard">Standard</option><option value="expert">Expert · smaller pockets</option></select></label>
       <canvas
         ref={canvas}
         width="480"
         height="480"
-        className="arcade-canvas square-canvas"
+        className="arcade-canvas square-canvas carrom-canvas"
         style={{ touchAction: "none" }}
         aria-label="Carrom board: drag the blue striker to shoot"
         onPointerDown={(e) => {
