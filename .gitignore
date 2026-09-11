@@ -7,6 +7,7 @@ dist
 .docx-work/
 .env
 backend/.env
+backend/.env.render
 backend/env
 env.rtf
 supabase/env
