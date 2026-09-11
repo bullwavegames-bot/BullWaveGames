@@ -4,6 +4,8 @@ import { ensureDailyChallenge, sweepStaleRooms } from "../services/rooms.js";
 import { logger } from "../logger.js";
 import { processIdentityDeletionJobs } from "../services/identity.js";
 import { processWebhookEvents } from "../services/billing.js";
+import { processRoomSnapshotJobs } from "../services/roomSnapshots.js";
+import { needsOperationalAlert, operationsSnapshot } from "../services/operations.js";
 
 export function startWorkers(options: { redisAvailable?: boolean } = {}): () => void {
   const redisAvailable = options.redisAvailable ?? true;
@@ -44,10 +46,23 @@ export function startWorkers(options: { redisAvailable?: boolean } = {}): () => 
   const billingWebhooks = setInterval(() => {
     runBillingWebhooks();
   }, 2 * 1000);
-  timers.push(dunning, daily, identityDeletion, billingWebhooks);
+  const roomSnapshots = setInterval(() => {
+    void processRoomSnapshotJobs().catch((error) => logger.warn({ err: error }, "room snapshot worker failed"));
+  }, 2 * 1000);
+  const operations = setInterval(() => {
+    void operationsSnapshot()
+      .then((snapshot) => {
+        if (needsOperationalAlert(snapshot.billingWebhooks) || needsOperationalAlert(snapshot.roomSnapshots)) {
+          logger.error({ operations: snapshot }, "durable worker backlog requires attention");
+        }
+      })
+      .catch((error) => logger.warn({ err: error }, "operations health check failed"));
+  }, 60 * 1000);
+  timers.push(dunning, daily, identityDeletion, billingWebhooks, roomSnapshots, operations);
   void ensureDailyChallenge().catch(() => undefined);
   void processIdentityDeletionJobs().catch(() => undefined);
   runBillingWebhooks();
+  void processRoomSnapshotJobs().catch(() => undefined);
   return () => {
     for (const timer of timers) clearInterval(timer);
   };

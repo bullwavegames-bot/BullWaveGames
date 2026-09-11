@@ -21,12 +21,11 @@ import { publicEntitlement } from "../types.js";
 import { getMembership } from "../services/membership.js";
 import { hitRateLimit } from "../lib/rate-limit.js";
 import { sha256 } from "../lib/crypto.js";
+import { listPublicPlans } from "../services/catalog.js";
 
 export async function billingRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/plans", async () => {
-    const { sql } = await import("../db.js");
-    const rows = await sql`SELECT id, name, monthly_paise, annual_paise, continue_cap, benefits FROM plans ORDER BY monthly_paise`;
-    return { ok: true, plans: rows };
+    return { ok: true, plans: await listPublicPlans() };
   });
 
   app.get("/api/billing/config", async () => ({

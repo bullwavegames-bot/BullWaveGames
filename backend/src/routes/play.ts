@@ -13,10 +13,11 @@ import { friendsBoard, globalBoard } from "../services/leaderboard.js";
 import { sql } from "../db.js";
 import { hitRateLimit } from "../lib/rate-limit.js";
 import { kolkataDateKey } from "../lib/kolkata.js";
+import { listPublishedGames } from "../services/catalog.js";
 
 export async function playRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/games", async () => {
-    const games = await sql`SELECT * FROM games WHERE published ORDER BY title`;
+    const games = await listPublishedGames();
     const freeToday = await todaysFreeSlugs();
     return { ok: true, games, freeToday };
   });
