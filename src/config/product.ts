@@ -7,7 +7,7 @@ import type { Plan, PlanId } from "../types";
  */
 export const PRODUCT = {
   brand: "Bullwave Games",
-  legalEntity: "CAPITAL BULL WAVE PRIVATE LIMITED",
+  legalEntity: "BULL WAVE CLUB",
   domain: "bullwavegames.com",
   language: "English",
   currency: "INR",

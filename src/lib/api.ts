@@ -29,12 +29,20 @@ function apiErrorMessage(body: ApiErrorBody, status: number): string {
   return `Request failed (${status})`;
 }
 
+export function newIdempotencyKey(): string {
+  return `bw:${crypto.randomUUID()}`;
+}
+
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   const headers = new Headers(options.headers);
   if (!headers.has("Content-Type") && options.body) headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
+  const method = (options.method ?? "GET").toUpperCase();
+  if (method === "POST" && path === "/api/billing/subscribe" && !headers.has("Idempotency-Key")) {
+    headers.set("Idempotency-Key", newIdempotencyKey());
+  }
   const response = await fetch(`${API_URL}${path}`, { ...options, headers });
   const json = (await response.json().catch(() => ({}))) as T & ApiErrorBody;
   if (!response.ok || json.ok === false) {

@@ -119,7 +119,7 @@ export async function buildApp(options: { roomsEnabled?: boolean; readinessCheck
     request.log.error({ err: error }, "unhandled");
     return reply.code(status >= 400 ? status : 500).send({
       ok: false,
-      error: status >= 500 ? "Something went wrong." : error.message,
+      error: status >= 500 && config.isProd ? "Something went wrong." : error.message || "Something went wrong.",
       code: "ERROR",
     });
   });

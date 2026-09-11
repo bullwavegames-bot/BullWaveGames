@@ -60,7 +60,7 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
       .parse(request.body);
     const suppliedKey = request.headers["idempotency-key"];
     const rawKey = Array.isArray(suppliedKey) ? suppliedKey[0] : suppliedKey;
-    const idempotencyKey = rawKey ?? (config.billingMode === "local" && !config.isProd ? `local:${crypto.randomUUID()}` : undefined);
+    const idempotencyKey = rawKey ?? (!config.isProd ? `dev:${crypto.randomUUID()}` : undefined);
     const validatedKey = z
       .string({ required_error: "Idempotency-Key header is required." })
       .min(16)
@@ -82,16 +82,20 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
     const user = requireUser(request);
     const body = z
       .object({
-        razorpaySubscriptionId: z.string().min(1),
-        razorpayPaymentId: z.string(),
-        razorpaySignature: z.string(),
+        razorpayPaymentId: z.string().min(1),
+        razorpaySignature: z.string().min(1),
+        razorpayOrderId: z.string().min(1).optional(),
+        razorpaySubscriptionId: z.string().min(1).optional(),
+      })
+      .refine((value) => Boolean(value.razorpayOrderId || value.razorpaySubscriptionId), {
+        message: "Checkout reference is required.",
       })
       .parse(request.body);
     await verifyCheckoutSignature({ userId: user.id, ...body });
     return { ok: true };
   });
 
-  if (!config.isProd && config.allowDevBilling && config.billingMode === "local") {
+  if (!config.isProd && config.allowDevBilling) {
     app.post("/api/billing/dev/fulfill", async (request) => {
       const user = requireUser(request);
       const body = z.object({ orderId: z.string().uuid() }).parse(request.body);

@@ -17,6 +17,13 @@ function list(source: NodeJS.ProcessEnv, name: string, fallback: string): string
     .filter(Boolean);
 }
 
+function parseTrustProxy(source: NodeJS.ProcessEnv): boolean | string[] {
+  const raw = (source.TRUSTED_PROXIES ?? "").trim();
+  if (!raw || raw === "false") return false;
+  if (raw === "true" || raw === "1") return true;
+  return list(source, "TRUSTED_PROXIES", "");
+}
+
 function validateUrl(name: string, value: string, protocols: string[], productionHttps = false): void {
   let parsed: URL;
   try {
@@ -39,7 +46,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env) {
     "CORS_ORIGINS",
     "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,https://bullwavegames.com,https://www.bullwavegames.com",
   );
-  const trustedProxies = list(source, "TRUSTED_PROXIES", "");
+  const trustedProxies = parseTrustProxy(source);
   const configValue = {
     env,
     isProd,
@@ -53,7 +60,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env) {
     appUrl: normalizedUrl(source.APP_URL ?? "http://localhost:5173"),
     apiUrl: normalizedUrl(source.API_URL ?? "http://localhost:8787"),
     corsOrigins,
-    trustProxy: trustedProxies.length ? trustedProxies : false,
+    trustProxy: trustedProxies,
     databaseUrl: required(source, "DATABASE_URL", isProd ? undefined : "postgres://bullwave:bullwave@127.0.0.1:5433/bullwave"),
     redisUrl: required(source, "REDIS_URL", isProd ? undefined : "redis://127.0.0.1:6380"),
     jwtAccessSecret: required(source, "JWT_ACCESS_SECRET", isProd ? undefined : "dev-only-access-secret-change-me-32ch"),
@@ -106,19 +113,13 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env) {
     if (!configValue.supabaseAnonKey) throw new Error("SUPABASE_ANON_KEY is required in production.");
     if (serviceKind === "worker" && !configValue.supabaseServiceRoleKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY is required by the production worker.");
     validateUrl("SUPABASE_URL", configValue.supabaseUrl, ["https:"], true);
-    if (trustedProxies.length === 0) throw new Error("TRUSTED_PROXIES is required in production.");
+    if (trustedProxies === false) throw new Error("TRUSTED_PROXIES is required in production.");
     if (configValue.allowDevBilling) throw new Error("ALLOW_DEV_BILLING must be false in production.");
     if (configValue.jwtAccessSecret.length < 32 || configValue.jwtAccessSecret.includes("dev-only")) throw new Error("JWT_ACCESS_SECRET must be a production secret of at least 32 characters.");
     if (configValue.playSessionSecret.length < 32 || configValue.playSessionSecret.includes("dev-only")) throw new Error("PLAY_SESSION_SECRET must be a production secret of at least 32 characters.");
     if (!configValue.smtpUrl) throw new Error("SMTP_URL is required in production.");
-    const billingValues = [
-      configValue.razorpay.keyId,
-      configValue.razorpay.keySecret,
-      configValue.razorpay.webhookSecret,
-      ...Object.values(configValue.razorpay.plans).flatMap((plan) => [plan.monthly, plan.annual]),
-    ];
-    if (billingMode !== "razorpay" || billingValues.some((value) => !value)) {
-      throw new Error("Production Razorpay keys, webhook secret, and all plan IDs are required.");
+    if (billingMode !== "razorpay" || !configValue.razorpay.keyId || !configValue.razorpay.keySecret || !configValue.razorpay.webhookSecret) {
+      throw new Error("Production requires BILLING_MODE=razorpay plus RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_WEBHOOK_SECRET.");
     }
   }
   return configValue;

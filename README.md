@@ -1,6 +1,6 @@
 # Bullwave Games
 
-Premium browser arcade studio site for **CAPITAL BULL WAVE PRIVATE LIMITED**.
+Premium browser arcade studio site for **BULL WAVE CLUB**.
 
 Play original browser games. Membership unlocks the studio.
 

@@ -3,7 +3,7 @@ import Razorpay from "razorpay";
 import type postgres from "postgres";
 import { sql } from "../db.js";
 import { config, razorpayPlanId, type BillingInterval, type PlanId } from "../config.js";
-import { badRequest, conflict, notFound } from "../lib/errors.js";
+import { ApiError, badRequest, conflict, notFound } from "../lib/errors.js";
 import { safeEqual } from "../lib/crypto.js";
 import { logger } from "../logger.js";
 import type { MembershipRow } from "../types.js";
@@ -25,6 +25,14 @@ export type RazorpayPayment = {
   status: string;
   amount: number;
   currency: string;
+  order_id?: string;
+};
+
+export type RazorpayOrder = {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
 };
 
 export interface BillingGateway {
@@ -33,7 +41,14 @@ export interface BillingGateway {
     totalCount: number;
     notes: Record<string, string>;
   }): Promise<RazorpaySubscription>;
+  createOrder?(input: {
+    amount: number;
+    currency: string;
+    receipt: string;
+    notes: Record<string, string>;
+  }): Promise<RazorpayOrder>;
   fetchSubscription(id: string): Promise<RazorpaySubscription>;
+  fetchOrder?(id: string): Promise<RazorpayOrder>;
   fetchPayment(id: string): Promise<RazorpayPayment>;
   cancelSubscription(id: string): Promise<unknown>;
   updateSubscription(id: string, input: { planId: string; scheduleChangeAt: "now" | "cycle_end" }): Promise<unknown>;
@@ -52,8 +67,19 @@ function client(): BillingGateway | null {
         notes: input.notes,
       } as never)) as unknown as RazorpaySubscription;
     },
+    async createOrder(input) {
+      return (await rz.orders.create({
+        amount: input.amount,
+        currency: input.currency,
+        receipt: input.receipt,
+        notes: input.notes,
+      })) as unknown as RazorpayOrder;
+    },
     async fetchSubscription(id) {
       return (await rz.subscriptions.fetch(id)) as unknown as RazorpaySubscription;
+    },
+    async fetchOrder(id) {
+      return (await rz.orders.fetch(id)) as unknown as RazorpayOrder;
     },
     async fetchPayment(id) {
       return (await rz.payments.fetch(id)) as unknown as RazorpayPayment;
@@ -100,6 +126,7 @@ export async function createSubscription(input: {
     amount_paise: number;
     currency: string;
     status: string;
+    razorpay_order_id: string | null;
     razorpay_subscription_id: string | null;
     safe_reason: string | null;
   };
@@ -107,7 +134,7 @@ export async function createSubscription(input: {
     await tx`SELECT pg_advisory_xact_lock(hashtext(${`${input.userId}:${input.idempotencyKey}`}))`;
     const existing = await tx<CheckoutOrder[]>`
       SELECT id, plan_id, billing_interval, amount_paise, currency, status,
-             razorpay_subscription_id, safe_reason
+             razorpay_order_id, razorpay_subscription_id, safe_reason
       FROM orders WHERE user_id = ${input.userId} AND idempotency_key = ${input.idempotencyKey}
     `;
     if (existing[0]) return { order: existing[0], created: false };
@@ -123,7 +150,7 @@ export async function createSubscription(input: {
         idempotency_key: input.idempotencyKey,
       })}
       RETURNING id, plan_id, billing_interval, amount_paise, currency, status,
-                razorpay_subscription_id, safe_reason
+                razorpay_order_id, razorpay_subscription_id, safe_reason
     `;
     return { order: inserted[0], created: true };
   });
@@ -141,7 +168,7 @@ export async function createSubscription(input: {
       await new Promise((resolve) => setTimeout(resolve, 100));
       const rows = await sql<CheckoutOrder[]>`
         SELECT id, plan_id, billing_interval, amount_paise, currency, status,
-               razorpay_subscription_id, safe_reason
+               razorpay_order_id, razorpay_subscription_id, safe_reason
         FROM orders WHERE id = ${order.id}
       `;
       order = rows[0] ?? order;
@@ -163,37 +190,63 @@ export async function createSubscription(input: {
     const rows = await sql<CheckoutOrder[]>`
       UPDATE orders SET status = 'pending', updated_at = now() WHERE id = ${order.id}
       RETURNING id, plan_id, billing_interval, amount_paise, currency, status,
-                razorpay_subscription_id, safe_reason
+                razorpay_order_id, razorpay_subscription_id, safe_reason
     `;
     return checkoutResponse(rows[0], "dev");
   }
 
+  const notes = {
+    userId: input.userId,
+    orderId: order.id,
+    planId: input.planId,
+    interval: input.billingInterval,
+    email: input.email,
+  };
   const providerPlanId = razorpayPlanId(input.planId, input.billingInterval);
-  if (!providerPlanId) {
-    await recordProviderFailure(order.id, "declined", "PLAN_UNCONFIGURED", "The selected recurring plan is not configured.");
-    throw badRequest("The selected recurring plan is not configured.", "BILLING_UNCONFIGURED");
+  if (!providerPlanId && !rz.createOrder) {
+    if (!config.allowDevBilling || config.isProd) {
+      await recordProviderFailure(order.id, "declined", "PLAN_UNCONFIGURED", "The selected recurring plan is not configured.");
+      throw badRequest("The selected recurring plan is not configured.", "BILLING_UNCONFIGURED");
+    }
+    const rows = await sql<CheckoutOrder[]>`
+      UPDATE orders SET status = 'pending', updated_at = now() WHERE id = ${order.id}
+      RETURNING id, plan_id, billing_interval, amount_paise, currency, status,
+                razorpay_order_id, razorpay_subscription_id, safe_reason
+    `;
+    return checkoutResponse(rows[0], "dev");
   }
   try {
-    const sub = await rz.createSubscription({
-      planId: providerPlanId,
-      totalCount: input.billingInterval === "annual" ? 10 : 120,
-      notes: {
-        userId: input.userId,
-        orderId: order.id,
-        planId: input.planId,
-        interval: input.billingInterval,
-        email: input.email,
-      },
+    if (providerPlanId) {
+      const sub = await rz.createSubscription({
+        planId: providerPlanId,
+        totalCount: input.billingInterval === "annual" ? 10 : 120,
+        notes,
+      });
+      if (!sub.id || (sub.plan_id && sub.plan_id !== providerPlanId)) throw new Error("Razorpay returned an invalid subscription.");
+      const rows = await sql<CheckoutOrder[]>`
+        UPDATE orders SET status = 'pending', razorpay_subscription_id = ${sub.id}, updated_at = now()
+        WHERE id = ${order.id}
+        RETURNING id, plan_id, billing_interval, amount_paise, currency, status,
+                  razorpay_order_id, razorpay_subscription_id, safe_reason
+      `;
+      return { ...checkoutResponse(rows[0], "razorpay"), shortUrl: sub.short_url ?? null };
+    }
+    const providerOrder = await rz.createOrder!({
+      amount,
+      currency: "INR",
+      receipt: order.id.replaceAll("-", "").slice(0, 40),
+      notes,
     });
-    if (!sub.id || (sub.plan_id && sub.plan_id !== providerPlanId)) throw new Error("Razorpay returned an invalid subscription.");
+    if (!providerOrder.id) throw new Error("Razorpay returned an invalid order.");
     const rows = await sql<CheckoutOrder[]>`
-      UPDATE orders SET status = 'pending', razorpay_subscription_id = ${sub.id}, updated_at = now()
+      UPDATE orders SET status = 'pending', razorpay_order_id = ${providerOrder.id}, updated_at = now()
       WHERE id = ${order.id}
       RETURNING id, plan_id, billing_interval, amount_paise, currency, status,
-                razorpay_subscription_id, safe_reason
+                razorpay_order_id, razorpay_subscription_id, safe_reason
     `;
-    return { ...checkoutResponse(rows[0], "razorpay"), shortUrl: sub.short_url ?? null };
+    return checkoutResponse(rows[0], "razorpay");
   } catch (error) {
+    if (error instanceof ApiError) throw error;
     const provider = classifyProviderError(error);
     await recordProviderFailure(order.id, provider.status, provider.code, provider.message);
     throw badRequest(provider.message, provider.status === "uncertain" ? "BILLING_PROVIDER_UNCERTAIN" : "BILLING_PROVIDER_REJECTED");
@@ -204,6 +257,7 @@ function checkoutResponse(order: {
   id: string;
   amount_paise: number;
   currency: string;
+  razorpay_order_id?: string | null;
   razorpay_subscription_id: string | null;
 }, mode: "dev" | "razorpay") {
   return {
@@ -212,9 +266,9 @@ function checkoutResponse(order: {
     amountPaise: Number(order.amount_paise),
     currency: order.currency,
     keyId: mode === "razorpay" ? config.razorpay.keyId : null,
-    razorpayOrderId: null,
+    razorpayOrderId: order.razorpay_order_id ?? null,
     razorpaySubscriptionId: order.razorpay_subscription_id,
-    autoRenew: mode === "razorpay",
+    autoRenew: Boolean(order.razorpay_subscription_id),
   };
 }
 
@@ -282,13 +336,83 @@ export function subscriptionCheckoutSignature(paymentId: string, subscriptionId:
   return crypto.createHmac("sha256", secret).update(`${paymentId}|${subscriptionId}`).digest("hex");
 }
 
+export function orderCheckoutSignature(orderId: string, paymentId: string, secret = config.razorpay.keySecret) {
+  return crypto.createHmac("sha256", secret).update(`${orderId}|${paymentId}`).digest("hex");
+}
+
 export async function verifyCheckoutSignature(input: {
   userId: string;
-  razorpaySubscriptionId: string;
   razorpayPaymentId: string;
   razorpaySignature: string;
+  razorpayOrderId?: string;
+  razorpaySubscriptionId?: string;
   gateway?: BillingGateway;
 }) {
+  if (input.razorpayOrderId) return verifyOrderCheckout(input, input.razorpayOrderId);
+  if (input.razorpaySubscriptionId) return verifySubscriptionCheckout(input, input.razorpaySubscriptionId);
+  throw badRequest("Checkout reference is missing.", "CHECKOUT_REFERENCE_MISSING");
+}
+
+async function verifyOrderCheckout(
+  input: {
+    userId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+    gateway?: BillingGateway;
+  },
+  razorpayOrderId: string,
+) {
+  if (!config.razorpay.keySecret) throw badRequest("Checkout verification is not configured.", "BILLING_UNCONFIGURED");
+  const orders = await sql<{
+    id: string;
+    user_id: string;
+    amount_paise: number;
+    currency: string;
+    razorpay_order_id: string;
+  }[]>`
+    SELECT id, user_id, amount_paise, currency, razorpay_order_id
+    FROM orders
+    WHERE user_id = ${input.userId} AND razorpay_order_id = ${razorpayOrderId}
+  `;
+  const order = orders[0];
+  if (!order) throw notFound("Checkout not found.");
+  const expected = orderCheckoutSignature(order.razorpay_order_id, input.razorpayPaymentId);
+  if (!safeEqual(expected, input.razorpaySignature)) throw badRequest("Payment signature mismatch.");
+  const rz = input.gateway ?? client();
+  if (!rz) throw badRequest("Checkout verification is not configured.", "BILLING_UNCONFIGURED");
+  const payment = await rz.fetchPayment(input.razorpayPaymentId);
+  const validPayment =
+    payment.id === input.razorpayPaymentId &&
+    (payment.status === "captured" || payment.status === "authorized") &&
+    Number(payment.amount) === Number(order.amount_paise) &&
+    String(payment.currency).toUpperCase() === order.currency &&
+    (!payment.order_id || payment.order_id === order.razorpay_order_id);
+  if (!validPayment) {
+    await recordProviderFailure(order.id, "declined", "PROVIDER_STATE_MISMATCH", "Razorpay checkout details did not match this order.");
+    throw badRequest("Payment details could not be verified.", "PAYMENT_DETAILS_MISMATCH");
+  }
+  return sql.begin(async (tx) => {
+    await tx`
+      UPDATE orders SET razorpay_signature = ${input.razorpaySignature},
+        razorpay_payment_id = ${input.razorpayPaymentId}, updated_at = now()
+      WHERE id = ${order.id}
+    `;
+    return applySuccessfulPayment(tx, {
+      orderId: order.id,
+      paymentId: input.razorpayPaymentId,
+    });
+  });
+}
+
+async function verifySubscriptionCheckout(
+  input: {
+    userId: string;
+    razorpayPaymentId: string;
+    razorpaySignature: string;
+    gateway?: BillingGateway;
+  },
+  razorpaySubscriptionId: string,
+) {
   if (!config.razorpay.keySecret) throw badRequest("Checkout verification is not configured.", "BILLING_UNCONFIGURED");
   const orders = await sql<{
     id: string;
@@ -301,7 +425,7 @@ export async function verifyCheckoutSignature(input: {
   }[]>`
     SELECT id, user_id, plan_id, billing_interval, amount_paise, currency, razorpay_subscription_id
     FROM orders
-    WHERE user_id = ${input.userId} AND razorpay_subscription_id = ${input.razorpaySubscriptionId}
+    WHERE user_id = ${input.userId} AND razorpay_subscription_id = ${razorpaySubscriptionId}
   `;
   const order = orders[0];
   if (!order) throw notFound("Checkout not found.");

@@ -3,7 +3,7 @@
 ## Configured business facts
 
 - Brand: Bullwave Games
-- Legal entity: CAPITAL BULL WAVE PRIVATE LIMITED
+- Legal entity: BULL WAVE CLUB
 - Domain: bullwavegames.com
 - Audience: India-first, English, INR, all ages (no 18+ gate)
 - Plans: Wave ₹399, Surge ₹799, Tide ₹1499 with the benefit lists in `src/config/product.ts`

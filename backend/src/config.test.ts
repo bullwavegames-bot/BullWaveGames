@@ -49,6 +49,24 @@ test("production uses an explicit proxy allowlist and public bind address", () =
   assert.deepEqual(value.trustProxy, ["10.0.0.0/8", "127.0.0.1"]);
 });
 
+test("production accepts TRUSTED_PROXIES=true for hosted proxies", () => {
+  const value = loadConfig({ ...productionEnv(), TRUSTED_PROXIES: "true" });
+  assert.equal(value.trustProxy, true);
+});
+
+test("production can start Razorpay checkout without subscription plan IDs", () => {
+  const env = productionEnv();
+  delete env.RAZORPAY_PLAN_WAVE_MONTHLY;
+  delete env.RAZORPAY_PLAN_WAVE_ANNUAL;
+  delete env.RAZORPAY_PLAN_SURGE_MONTHLY;
+  delete env.RAZORPAY_PLAN_SURGE_ANNUAL;
+  delete env.RAZORPAY_PLAN_TIDE_MONTHLY;
+  delete env.RAZORPAY_PLAN_TIDE_ANNUAL;
+  const value = loadConfig(env);
+  assert.equal(value.razorpay.plans.wave.monthly, "");
+  assert.equal(value.razorpay.keyId, "rzp_live_key");
+});
+
 test("production rejects wildcard CORS and development billing", () => {
   assert.throws(() => loadConfig({ ...productionEnv(), CORS_ORIGINS: "*" }), /wildcard/);
   assert.throws(() => loadConfig({ ...productionEnv(), ALLOW_DEV_BILLING: "true" }), /ALLOW_DEV_BILLING/);
