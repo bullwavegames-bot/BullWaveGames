@@ -1,10 +1,17 @@
 import type { FastifyInstance } from "fastify";
-import { z } from "zod";
 import { requireUser } from "../plugins/auth.js";
+import { issueRoomTicket } from "../rooms/tickets.js";
+import { z } from "zod";
 import { createChallengeLink, listFriends, requestFriend, resolveChallengeLink, respondFriend } from "../services/social.js";
 import { createTicket } from "../services/admin.js";
 
 export async function socialRoutes(app: FastifyInstance): Promise<void> {
+  app.post("/api/rooms/ticket", async (request) => {
+    const user = requireUser(request);
+    const ticket = await issueRoomTicket(user.id);
+    return { ok: true, ...ticket };
+  });
+
   app.get("/api/friends", async (request) => {
     const user = requireUser(request);
     const friends = await listFriends(user.id);

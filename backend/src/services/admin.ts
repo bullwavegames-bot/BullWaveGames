@@ -3,6 +3,7 @@ import { badRequest, notFound } from "../lib/errors.js";
 import { writeAudit } from "./audit.js";
 import { activateMembership, expireMembership } from "./membership.js";
 import type { PlanId } from "../types.js";
+import { invalidateCatalog } from "./catalog.js";
 
 export async function adminStats() {
   const members = await sql<{ n: string }[]>`
@@ -135,6 +136,7 @@ export async function saveGame(actorId: string, body: Record<string, unknown>) {
     ON CONFLICT (game_id) DO NOTHING
   `;
   await writeAudit(actorId, "game_publish", saved[0].id, { slug });
+  await invalidateCatalog();
   return { id: saved[0].id, slug };
 }
 

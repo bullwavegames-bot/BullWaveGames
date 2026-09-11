@@ -13,6 +13,27 @@ import {
   saveGame,
   saveNote,
 } from "../services/admin.js";
+import { operationsSnapshot } from "../services/operations.js";
+
+export const gameUpdateSchema = z.object({
+  slug: z.string().regex(/^[a-z0-9-]{2,80}$/),
+  title: z.string().min(1).max(120).optional(),
+  genre: z.string().min(1).max(60).optional(),
+  sessionMinutes: z.number().int().min(1).max(180).optional(),
+  fantasy: z.string().max(500).optional(),
+  description: z.string().max(10_000).optional(),
+  howToPlay: z.array(z.string().min(1).max(500)).max(20).optional(),
+  cover: z.string().max(500).optional(),
+  coverAlt: z.string().max(300).optional(),
+  previewAlt: z.string().max(300).optional(),
+  controls: z.object({ desktop: z.array(z.string().max(120)).max(20), touch: z.array(z.string().max(120)).max(20) }).optional(),
+  memberAccess: z.boolean().optional(),
+  rotationEligible: z.boolean().optional(),
+  published: z.boolean().optional(),
+  maintenance: z.boolean().optional(),
+  isNew: z.boolean().optional(),
+  unsupportedNote: z.string().max(500).nullable().optional(),
+}).strict();
 
 export async function adminRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", async (request) => {
@@ -20,6 +41,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get("/api/admin/stats", async () => ({ ok: true, ...(await adminStats()) }));
+  app.get("/api/admin/operations", async () => ({ ok: true, ...(await operationsSnapshot()) }));
 
   app.get("/api/admin/members", async (request) => {
     const query = z
@@ -64,7 +86,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
 
   app.put("/api/admin/games", async (request) => {
     const admin = requireAdmin(request);
-    const body = z.record(z.unknown()).parse(request.body);
+    const body = gameUpdateSchema.parse(request.body);
     const saved = await saveGame(admin.id, body);
     return { ok: true, ...saved };
   });

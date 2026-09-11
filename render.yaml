@@ -1,0 +1,70 @@
+services:
+  - type: web
+    name: BullWaveGames
+    runtime: docker
+    repo: https://github.com/bullwavegames-bot/BullWaveGames
+    branch: main
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    preDeployCommand: npm run migrate:prod
+    healthCheckPath: /health/live
+    autoDeployTrigger: commit
+    maxShutdownDelaySeconds: 30
+    buildFilter:
+      paths:
+        - backend/**
+        - shared/**
+        - render.yaml
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SERVICE_KIND
+        value: api
+      - key: HOST
+        value: 0.0.0.0
+      - key: APP_URL
+        sync: false
+      - key: API_URL
+        value: https://bullwavegames.onrender.com
+      - key: CORS_ORIGINS
+        sync: false
+      - key: TRUSTED_PROXIES
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: AUTH_MODE
+        value: supabase
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: PLAY_SESSION_SECRET
+        generateValue: true
+      - key: SMTP_URL
+        sync: false
+      - key: BILLING_MODE
+        value: razorpay
+      - key: ALLOW_DEV_BILLING
+        value: "false"
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
+      - key: RAZORPAY_PLAN_WAVE_MONTHLY
+        sync: false
+      - key: RAZORPAY_PLAN_WAVE_ANNUAL
+        sync: false
+      - key: RAZORPAY_PLAN_SURGE_MONTHLY
+        sync: false
+      - key: RAZORPAY_PLAN_SURGE_ANNUAL
+        sync: false
+      - key: RAZORPAY_PLAN_TIDE_MONTHLY
+        sync: false
+      - key: RAZORPAY_PLAN_TIDE_ANNUAL
+        sync: false

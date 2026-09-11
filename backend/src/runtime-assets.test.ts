@@ -16,6 +16,7 @@ test("production build contains shared game modules and SQL migrations", async (
     access(path.join(outputRoot, "backend/migrations/004_subscription_idempotency.sql")),
     access(path.join(outputRoot, "backend/migrations/005_durable_billing_events.sql")),
     access(path.join(outputRoot, "backend/migrations/006_gameplay_delivery.sql")),
+    access(path.join(outputRoot, "backend/migrations/007_durable_room_snapshots.sql")),
   ]);
   assert.ok(true);
 });

@@ -1,19 +1,9 @@
 import { supabase } from "./supabaseClient";
 
-function localApiBase(url: string) {
-  try {
-    const parsed = new URL(url);
-    const localHost = parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost";
-    return localHost && (parsed.port === "8787" || parsed.port === "");
-  } catch {
-    return false;
-  }
-}
-
 const configuredApi = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8787").replace(/\/$/, "");
 
-/** In Vite dev, call `/api` same-origin so the proxy forwards to Fastify and CORS is not involved. */
-export const API_URL = import.meta.env.DEV && localApiBase(configuredApi) ? "" : configuredApi;
+/** In Vite dev, call `/api` same-origin; the proxy forwards to VITE_API_URL without browser CORS. */
+export const API_URL = import.meta.env.DEV ? "" : configuredApi;
 
 type ApiErrorBody = {
   ok?: boolean;
