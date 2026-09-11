@@ -19,6 +19,7 @@ const WORDS = [
 ];
 
 export type RoomPlayer = { id: string; name: string; score: number; team: string };
+export type RoomAction = { playerId: string; actionId: string; version: number };
 export type RoomState = {
   code: string;
   version: number;
@@ -26,6 +27,7 @@ export type RoomState = {
   phase: string;
   players: RoomPlayer[];
   reservations: Record<string, number>;
+  actionHistory: RoomAction[];
   round: number;
   rounds: number;
   deadline: number;
@@ -47,6 +49,7 @@ export function emptyRoom(code: string, mode: string): RoomState {
     phase: "lobby",
     players: [],
     reservations: {},
+    actionHistory: [],
     round: 0,
     rounds: 10,
     deadline: 0,

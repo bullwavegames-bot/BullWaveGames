@@ -1,4 +1,5 @@
 import { config } from "../config.js";
+import { deletedIdentity } from "./privacy.js";
 import { sql } from "../db.js";
 import { randomToken, sha256, verifyPassword } from "../lib/crypto.js";
 import { conflict, forbidden, unauthorized } from "../lib/errors.js";
@@ -119,15 +120,16 @@ export async function requestSupabaseAccountDeletion(userId: string, supabaseUse
     if (membership[0]?.razorpay_subscription_id && membership[0].auto_renew) {
       throw conflict("Cancel automatic renewal before deleting this account.", "ACTIVE_SUBSCRIPTION");
     }
-    const deletedEmail = `deleted+${user.id}@invalid.local`;
+    const deleted = deletedIdentity(user.id);
     await tx`
       UPDATE users SET
-        email = ${deletedEmail}, billing_email = ${deletedEmail}, display_name = 'Deleted player',
-        avatar_id = 'lantern', password_hash = NULL, deleted_at = now(),
+        email = ${deleted.email}, billing_email = ${deleted.email}, display_name = ${deleted.displayName},
+        avatar_id = ${deleted.avatarId}, password_hash = NULL, deleted_at = now(),
         deletion_status = 'pending', deletion_requested_at = now(), updated_at = now()
       WHERE id = ${userId}
     `;
     await tx`UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = ${userId} AND revoked_at IS NULL`;
+    await tx`UPDATE support_tickets SET name = ${deleted.displayName}, email = ${deleted.email} WHERE user_id = ${userId}`;
     await tx`
       UPDATE memberships SET status = 'expired', auto_renew = false, cancel_at_period_end = true, updated_at = now()
       WHERE user_id = ${userId}

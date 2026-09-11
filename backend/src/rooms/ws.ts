@@ -29,6 +29,7 @@ import { nextVersion } from "./version.js";
 import { roomSocketClosed, roomSocketOpened } from "../services/runtimeMetrics.js";
 import { hitRateLimit } from "../lib/rate-limit.js";
 import { roomMessageSchema } from "./messages.js";
+import { priorAction, rememberAction } from "./actions.js";
 
 type Socket = {
   send: (raw: string) => void;
@@ -201,6 +202,7 @@ export async function attachRooms(app: FastifyInstance): Promise<void> {
           }
 
           if (message.type === "create" || message.type === "join") {
+            if (ws.roomCode) throw new Error("Already joined to a room.");
             if (!MODES.has(String(message.mode))) throw new Error("Unknown room game.");
             const name = typeof message.name === "string" ? message.name.trim().slice(0, 24) : "";
             if (!name) throw new Error("Enter a player name.");
@@ -245,6 +247,13 @@ export async function attachRooms(app: FastifyInstance): Promise<void> {
           if (!ws.roomCode) return;
           const room = (await loadRoom(ws.roomCode)) as RoomState | null;
           if (!room) return;
+          if (message.actionId) {
+            const prior = priorAction(room.actionHistory, ws.playerId, message.actionId);
+            if (prior) {
+              acknowledge(ws, message, prior.version);
+              return;
+            }
+          }
           const result = applyMessage(room, ws.playerId, message);
           if (result.error) {
             send(ws, { type: "error", message: result.error });
@@ -258,8 +267,12 @@ export async function attachRooms(app: FastifyInstance): Promise<void> {
             ws.roomCode = null;
             return;
           }
-          await touchRoom(ws.roomCode, { ...result.room, version: nextVersion(room.version, room.version) }, room.version);
-          acknowledge(ws, message, room.version + 1);
+          const version = nextVersion(room.version, room.version);
+          const actionHistory = message.actionId
+            ? rememberAction(room.actionHistory, { playerId: ws.playerId, actionId: message.actionId, version })
+            : room.actionHistory;
+          await touchRoom(ws.roomCode, { ...result.room, actionHistory, version }, room.version);
+          acknowledge(ws, message, version);
           if (result.room.phase === "ended" && room.phase !== "ended" && result.room.players.length) {
             /* keep Redis until idle timeout / last leave so rematch in lobby works */
           }

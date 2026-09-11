@@ -291,7 +291,17 @@ export async function changeEmail(userId: string, email: string, ip?: string) {
 }
 
 export async function deleteAccount(userId: string) {
-  await sql`UPDATE users SET deleted_at = now(), email = ('deleted+' || id::text || '@invalid.local')::citext, updated_at = now() WHERE id = ${userId}`;
-  await sql`UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = ${userId} AND revoked_at IS NULL`;
-  await sql`UPDATE memberships SET status = 'expired', plan_id = NULL, razorpay_subscription_id = NULL, updated_at = now() WHERE user_id = ${userId}`;
+  const { deletedIdentity } = await import("./privacy.js");
+  const identity = deletedIdentity(userId);
+  await sql.begin(async (tx) => {
+    await tx`
+      UPDATE users SET deleted_at = now(), email = ${identity.email}, billing_email = ${identity.email},
+        display_name = ${identity.displayName}, avatar_id = ${identity.avatarId}, password_hash = NULL,
+        deletion_status = 'completed', deletion_requested_at = now(), updated_at = now()
+      WHERE id = ${userId}
+    `;
+    await tx`UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = ${userId} AND revoked_at IS NULL`;
+    await tx`UPDATE memberships SET status = 'expired', plan_id = NULL, razorpay_subscription_id = NULL, updated_at = now() WHERE user_id = ${userId}`;
+    await tx`UPDATE support_tickets SET name = ${identity.displayName}, email = ${identity.email} WHERE user_id = ${userId}`;
+  });
 }

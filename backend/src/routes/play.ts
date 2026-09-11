@@ -13,7 +13,7 @@ import { friendsBoard, globalBoard } from "../services/leaderboard.js";
 import { sql } from "../db.js";
 import { hitRateLimit } from "../lib/rate-limit.js";
 import { kolkataDateKey } from "../lib/kolkata.js";
-import { listPublishedGames } from "../services/catalog.js";
+import { listPublishedGames, publishedGameBySlug } from "../services/catalog.js";
 
 export async function playRoutes(app: FastifyInstance): Promise<void> {
   app.get("/api/games", async () => {
@@ -24,8 +24,7 @@ export async function playRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/api/games/:slug", async (request) => {
     const params = z.object({ slug: z.string() }).parse(request.params);
-    const games = await sql`SELECT * FROM games WHERE slug = ${params.slug} LIMIT 1`;
-    return { ok: true, game: games[0] ?? null };
+    return { ok: true, game: await publishedGameBySlug(params.slug) };
   });
 
   app.get("/api/play/status", async (request) => {
