@@ -1,4 +1,4 @@
-import { createRemoteJWKSet, jwtVerify, type JWTPayload, type JWTVerifyGetKey, type KeyLike } from "jose";
+import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
 import { config } from "../config.js";
 
 export type SupabaseClaims = JWTPayload & {
@@ -19,7 +19,7 @@ export function createSupabaseVerifier(supabaseUrl: string, audience: string, jw
   const remoteKeys = createRemoteJWKSet(new URL(`${normalized}/auth/v1/.well-known/jwks.json`));
   const hmacKey = jwtSecret ? new TextEncoder().encode(jwtSecret) : null;
 
-  const verifyWith = (key: JWTVerifyGetKey | Uint8Array | KeyLike) => async (token: string): Promise<SupabaseClaims> => {
+  const verifyWith = (key: Parameters<typeof jwtVerify>[1]) => async (token: string): Promise<SupabaseClaims> => {
     try {
       const { payload } = await jwtVerify(token, key, { issuer, audience, clockTolerance: 60 });
       return asClaims(payload);
