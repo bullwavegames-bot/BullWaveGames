@@ -32,6 +32,10 @@ export default defineConfig(({ mode }) => {
         target: apiTarget,
         changeOrigin: true,
         configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq, req) => {
+            const auth = req.headers.authorization;
+            if (auth) proxyReq.setHeader("Authorization", Array.isArray(auth) ? auth[0] : auth);
+          });
           proxy.on("error", (_err, _req, res) => {
             if ("headersSent" in res && res.headersSent) return;
             if ("writeHead" in res) {

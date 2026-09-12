@@ -2,8 +2,17 @@ import { supabase } from "./supabaseClient";
 
 const configuredApi = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8787").replace(/\/$/, "");
 
-/** In Vite dev, call `/api` same-origin; the proxy forwards to VITE_API_URL without browser CORS. */
-export const API_URL = import.meta.env.DEV ? "" : configuredApi;
+function isLoopbackApi(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    return hostname === "localhost" || hostname === "127.0.0.1";
+  } catch {
+    return true;
+  }
+}
+
+/** Same-origin `/api` only when the API is local. Remote APIs are called directly so the Bearer token is not dropped by the proxy. */
+export const API_URL = import.meta.env.DEV && isLoopbackApi(configuredApi || "http://127.0.0.1:8787") ? "" : configuredApi;
 
 type ApiErrorBody = {
   ok?: boolean;
@@ -13,13 +22,14 @@ type ApiErrorBody = {
 };
 
 function apiErrorMessage(body: ApiErrorBody, status: number): string {
-  if (typeof body.error === "string") return body.error;
+  if (typeof body.message === "string" && body.message && body.message !== "Unauthorized") return body.message;
+  if (typeof body.error === "string" && body.error !== "Unauthorized") return body.error;
   if (body.error?.description) return body.error.description;
   if (body.error?.message) return body.error.message;
-  if (body.message) return body.message;
   if (body.code === "IDENTITY_LINK_REQUIRED") {
     return "This email already has a Bullwave account. Log in with that account, or use a different email.";
   }
+  if (status === 401) return "Sign in to continue.";
   return `Request failed (${status})`;
 }
 

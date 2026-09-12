@@ -71,6 +71,7 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env) {
     supabaseAnonKey: source.SUPABASE_ANON_KEY ?? "",
     supabaseServiceRoleKey: source.SUPABASE_SERVICE_ROLE_KEY ?? "",
     supabaseJwtAudience: source.SUPABASE_JWT_AUDIENCE ?? "authenticated",
+    supabaseJwtSecret: source.SUPABASE_JWT_SECRET ?? "",
     port: Number(source.PORT ?? 8787),
     host: source.HOST ?? (isProd ? "0.0.0.0" : "127.0.0.1"),
     appUrl: normalizedUrl(source.APP_URL ?? "http://localhost:5173"),

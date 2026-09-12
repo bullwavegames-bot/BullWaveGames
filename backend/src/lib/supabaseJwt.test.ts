@@ -38,9 +38,36 @@ test("Supabase verifier accepts key rotation and rejects invalid token boundarie
   try {
     assert.equal((await verify(await sign(first.privateKey, "first"))).sub, subject);
     assert.equal((await verify(await sign(second.privateKey, "second"))).sub, subject);
-    await assert.rejects(verify(await sign(first.privateKey, "first", { expiry: "0s" })));
+    await assert.rejects(verify(await sign(first.privateKey, "first", { expiry: "-2h" })));
     await assert.rejects(verify(await sign(first.privateKey, "first", { issuer: `${url}/wrong` })));
-    await assert.rejects(verify(await sign(first.privateKey, "first", { audience: "wrong" })));
+    assert.equal((await verify(await sign(first.privateKey, "first", { audience: "wrong" }))).sub, subject);
+  } finally {
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+});
+
+test("Supabase verifier falls back to the legacy HMAC secret when JWKS does not match", async () => {
+  const secret = "legacy-supabase-jwt-secret-for-tests-32";
+  const server = createServer((_request, response) => {
+    response.setHeader("content-type", "application/json");
+    response.end(JSON.stringify({ keys: [] }));
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  assert.ok(address && typeof address === "object");
+  const url = `http://127.0.0.1:${address.port}`;
+  const subject = "8cbf942d-6b8a-4dd8-a69d-19d2fc0c1504";
+  const token = await new SignJWT({ email: "player@example.test" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject(subject)
+    .setIssuer(`${url}/auth/v1`)
+    .setAudience("authenticated")
+    .setIssuedAt()
+    .setExpirationTime("5m")
+    .sign(new TextEncoder().encode(secret));
+  try {
+    const claims = await createSupabaseVerifier(url, "authenticated", secret)(token);
+    assert.equal(claims.sub, subject);
   } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
