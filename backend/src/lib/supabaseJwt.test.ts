@@ -68,6 +68,10 @@ test("Supabase verifier falls back to the legacy HMAC secret when JWKS does not 
   try {
     const claims = await createSupabaseVerifier(url, "authenticated", secret)(token);
     assert.equal(claims.sub, subject);
+    await assert.rejects(
+      createSupabaseVerifier(url, "authenticated")(token),
+      /HS256_SECRET_MISSING/,
+    );
   } finally {
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }

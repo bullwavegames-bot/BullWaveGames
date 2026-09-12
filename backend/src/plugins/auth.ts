@@ -49,8 +49,9 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
         request.authUser = null;
         request.supabaseClaims = null;
         if (error instanceof ApiError) throw error;
+        const detail = error instanceof Error ? error.message.slice(0, 80) : "token";
         request.log.warn({ err: error }, "authentication failed");
-        if (fromHeader) throw unauthorized("Session expired. Log in again.", "TOKEN_INVALID");
+        if (fromHeader) throw unauthorized(`Session expired. Log in again. (${detail})`, "TOKEN_INVALID");
       }
     }
     if (request.url.startsWith("/api/play") || request.url.startsWith("/rooms")) {

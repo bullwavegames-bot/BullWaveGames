@@ -1,4 +1,4 @@
-import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose";
+import { createRemoteJWKSet, decodeProtectedHeader, jwtVerify, type JWTPayload } from "jose";
 import { config } from "../config.js";
 
 export type SupabaseClaims = JWTPayload & {
@@ -33,6 +33,11 @@ export function createSupabaseVerifier(supabaseUrl: string, audience: string, jw
   const verifyHmac = hmacKey ? verifyWith(hmacKey) : null;
 
   return async (token: string): Promise<SupabaseClaims> => {
+    const alg = decodeProtectedHeader(token).alg ?? "";
+    if (alg.startsWith("HS")) {
+      if (!verifyHmac) throw new Error("HS256_SECRET_MISSING");
+      return verifyHmac(token);
+    }
     try {
       return await verifyJwks(token);
     } catch (jwksError) {
