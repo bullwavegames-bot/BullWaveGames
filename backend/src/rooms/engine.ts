@@ -1,6 +1,6 @@
 import { randomBytes, randomInt } from "node:crypto";
-import { createLudo, moveLudo, rollLudo } from "../../../shared/ludo.mjs";
-import { QUESTIONS } from "../../../shared/questions.mjs";
+import { createLudo, moveLudo, rollLudo } from "../../shared/ludo.mjs";
+import { QUESTIONS } from "../../shared/questions.mjs";
 
 export const MODES = new Set(["draw-guess", "multiplayer-ludo", "live-trivia", "trivia-battle"]);
 const WORDS = [

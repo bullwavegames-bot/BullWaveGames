@@ -6,8 +6,10 @@ dist
 .idea
 .docx-work/
 .env
+frontend/.env
 backend/.env
 backend/.env.render
 backend/env
 env.rtf
+backend/supabase/env
 supabase/env

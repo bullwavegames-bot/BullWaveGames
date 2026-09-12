@@ -106,7 +106,7 @@ Leaderboard ordering follows each game's `higher_better` or `lower_better` rule.
 
 ## Rooms
 
-WebSocket **`/rooms`** on this server. Live state is Redis; on close the final JSON is written to `room_snapshots`. The Vite plugin in `server/rooms.mjs` remains for same-origin local play during `npm run dev` of the frontend. Point production clients at this API host.
+WebSocket **`/rooms`** on this server. Live state is Redis; on close the final JSON is written to `room_snapshots`. The Vite plugin in `frontend/server/rooms.mjs` remains for same-origin local play during `npm run dev` of the frontend. Point production clients at this API host.
 
 ## Frontend contract breaks
 

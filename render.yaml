@@ -13,7 +13,6 @@ services:
     buildFilter:
       paths:
         - backend/**
-        - shared/**
         - render.yaml
     envVars:
       - key: NODE_ENV

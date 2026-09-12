@@ -6,7 +6,6 @@ RUN npm ci
 FROM dependencies AS build
 WORKDIR /app
 COPY backend ./backend
-COPY shared ./shared
 RUN npm run build --prefix backend
 
 FROM node:22-alpine AS runtime

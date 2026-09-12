@@ -24,8 +24,8 @@ type ApiErrorBody = {
 function apiErrorMessage(body: ApiErrorBody, status: number): string {
   if (typeof body.message === "string" && body.message && body.message !== "Unauthorized") return body.message;
   if (typeof body.error === "string" && body.error !== "Unauthorized") return body.error;
-  if (body.error?.description) return body.error.description;
-  if (body.error?.message) return body.error.message;
+  if (typeof body.error === "object" && body.error?.description) return body.error.description;
+  if (typeof body.error === "object" && body.error?.message) return body.error.message;
   if (body.code === "IDENTITY_LINK_REQUIRED") {
     return "This email already has a Bullwave account. Log in with that account, or use a different email.";
   }

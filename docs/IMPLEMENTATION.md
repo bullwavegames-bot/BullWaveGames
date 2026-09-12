@@ -6,7 +6,7 @@
 - Legal entity: BULL WAVE CLUB
 - Domain: bullwavegames.com
 - Audience: India-first, English, INR, all ages (no 18+ gate)
-- Plans: Wave ₹399, Surge ₹799, Tide ₹1499 with the benefit lists in `src/config/product.ts`
+- Plans: Wave ₹399, Surge ₹799, Tide ₹1499 with the benefit lists in `frontend/src/config/product.ts`
 - Timezone for daily rotation: Asia/Kolkata
 - Sound muted by default
 - No live payment provider is connected
@@ -35,5 +35,5 @@ Marked in the UI with notices where players would otherwise think they are live:
 
 - Enforce membership perk entitlements on the server; published games remain free to launch
 - Verify payment webhooks and keep secrets off the client
-- Allowlist return URLs (already mirrored in `src/lib/access.ts`)
+- Allowlist return URLs (already mirrored in `frontend/src/lib/access.ts`)
 - Keep admin authorization on the server, not only the UI guard

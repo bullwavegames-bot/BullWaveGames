@@ -17,5 +17,5 @@ await new Promise((resolve, reject) => {
   compiler.once("exit", (code) => code === 0 ? resolve() : reject(new Error(`TypeScript build failed with exit code ${code}.`)));
 });
 
-await cp(path.resolve(backendDir, "../shared"), path.join(outputDir, "shared"), { recursive: true });
+await cp(path.join(backendDir, "shared"), path.join(outputDir, "backend/shared"), { recursive: true });
 await cp(path.join(backendDir, "migrations"), path.join(outputDir, "backend/migrations"), { recursive: true });

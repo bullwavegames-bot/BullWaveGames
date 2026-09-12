@@ -12,8 +12,8 @@ Passwords live in **Supabase Auth** (`auth.users`), not in the browser and not i
      `http://localhost:5173/verify-email`  
      `http://localhost:5173/reset-password`  
      and the same paths on the live domain
-4. **SQL Editor** — run `supabase/profiles.sql` once.
-5. Copy **Project URL** and **anon public** key into the repo root `.env`:
+4. **SQL Editor** — run `backend/supabase/profiles.sql` once.
+5. Copy **Project URL** and **anon public** key into `frontend/.env`:
 
 ```
 VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co

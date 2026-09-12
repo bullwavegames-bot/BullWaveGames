@@ -9,7 +9,7 @@ The catalog contains the six original games plus thirty new browser games. The l
 - `npm run preview`: serves built assets and the room service for local preview.
 - `npm run test:games`: rule, component-control, and two-client room tests.
 
-For friends on the same trusted local network, run the dev server with `--host 0.0.0.0`, open its printed Network address on every device, and share a room code. `localhost` on another device refers to that other device. Public multiplayer hosting needs a persistent Node/WebSocket host or an equivalent room service; static hosting alone does not run `server/rooms.mjs`. No public hosting was configured by this change.
+For friends on the same trusted local network, run the dev server with `--host 0.0.0.0`, open its printed Network address on every device, and share a room code. `localhost` on another device refers to that other device. Public multiplayer hosting needs a persistent Node/WebSocket host or an equivalent room service; static hosting alone does not run `frontend/server/rooms.mjs`. No public hosting was configured by this change.
 
 ## Modes and deliberately compact rules
 

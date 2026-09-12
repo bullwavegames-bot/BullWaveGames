@@ -260,11 +260,6 @@ export function CheckoutPage() {
               <dd>{PRODUCT.prototype.paymentProviderName}</dd>
             </div>
           </dl>
-          <Notice>
-            {PRODUCT.prototype.isLivePayment
-              ? "Live payment. Razorpay collects the charge."
-              : "Payment test mode. The local Bullwave console does not collect card details or make a live charge."}
-          </Notice>
           {error ? <p className="error">{error}</p> : null}
           <Button variant="primary" className="btn-full" disabled={busy} onClick={() => void pay()}>
             {busy ? "Opening checkout…" : `Pay ${formatInr(plan.monthlyPriceInr)}`}
