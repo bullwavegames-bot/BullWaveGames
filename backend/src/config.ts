@@ -133,7 +133,6 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env) {
     if (configValue.allowDevBilling) throw new Error("ALLOW_DEV_BILLING must be false in production.");
     if (configValue.jwtAccessSecret.length < 32 || configValue.jwtAccessSecret.includes("dev-only")) throw new Error("JWT_ACCESS_SECRET must be a production secret of at least 32 characters.");
     if (configValue.playSessionSecret.length < 32 || configValue.playSessionSecret.includes("dev-only")) throw new Error("PLAY_SESSION_SECRET must be a production secret of at least 32 characters.");
-    if (!configValue.smtpUrl) throw new Error("SMTP_URL is required in production.");
     if (billingMode !== "razorpay" || !configValue.razorpay.keyId || !configValue.razorpay.keySecret || !configValue.razorpay.webhookSecret) {
       throw new Error("Production requires BILLING_MODE=razorpay plus RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_WEBHOOK_SECRET.");
     }

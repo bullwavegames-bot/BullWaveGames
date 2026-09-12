@@ -51,8 +51,13 @@ export function CheckoutPage() {
   useEffect(() => {
     if (!session) return;
     void api<{ entitlement: typeof localEntitlement }>("/api/me")
-      .then((result) => setEntitlement(result.entitlement))
-      .catch(() => undefined);
+      .then((result) => {
+        setEntitlement(result.entitlement);
+        setError("");
+      })
+      .catch((cause: Error) => {
+        setError(cause.message || "Sign in again to continue checkout.");
+      });
   }, [session]);
 
   if (!user || !session) {

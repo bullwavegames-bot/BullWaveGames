@@ -81,8 +81,7 @@ export async function loadSupabaseProfile(subject: string, accessToken?: string)
 }
 
 export async function resolveSupabaseProfile(claims: SupabaseClaims, accessToken?: string): Promise<ProfileRow | null> {
-  return (await loadSupabaseProfile(claims.sub, accessToken))
-    ?? ((await hasLocalProfilesTable()) ? null : profileFromClaims(claims));
+  return (await loadSupabaseProfile(claims.sub, accessToken)) ?? profileFromClaims(claims);
 }
 
 export async function provisionSupabaseUser(claims: SupabaseClaims, accessToken?: string): Promise<UserRow> {
@@ -115,12 +114,33 @@ export async function provisionSupabaseUser(claims: SupabaseClaims, accessToken?
         return rows[0];
       }
 
-      const emailOwner = await tx<{ id: string }[]>`
-        SELECT id FROM users WHERE email = ${email} LIMIT 1
+      const emailOwner = await tx<UserRow[]>`
+        SELECT * FROM users WHERE email = ${email} LIMIT 1
       `;
       if (emailOwner[0]) {
+        if (emailOwner[0].deleted_at || (emailOwner[0].deletion_status ?? "active") !== "active") {
+          throw unauthorized("This account has been deleted.", "ACCOUNT_DELETED");
+        }
+        if (!config.isProd) {
+          const rows = await tx<UserRow[]>`
+            UPDATE users SET
+              auth_provider = 'supabase',
+              supabase_user_id = ${claims.sub},
+              password_hash = NULL,
+              email = ${email},
+              display_name = ${profile.display_name},
+              avatar_id = ${profile.avatar_id},
+              onboarding_complete = ${profile.onboarding_complete},
+              role = ${profile.role},
+              email_verified_at = COALESCE(email_verified_at, now()),
+              updated_at = now()
+            WHERE id = ${emailOwner[0].id}
+            RETURNING *
+          `;
+          return rows[0];
+        }
         throw conflict(
-          "This email belongs to an existing account and requires an explicit identity migration.",
+          "This email already has a Bullwave account. Log in with that account, or use a different email.",
           "IDENTITY_LINK_REQUIRED",
         );
       }

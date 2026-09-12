@@ -85,6 +85,12 @@ test("production permits explicit loopback origins for local frontend testing", 
   ]);
 });
 
+test("production can boot without SMTP_URL", () => {
+  const env = productionEnv();
+  delete env.SMTP_URL;
+  assert.equal(loadConfig(env).smtpUrl, "");
+});
+
 test("only the production worker requires the Supabase service-role key", () => {
   const api = productionEnv();
   delete api.SUPABASE_SERVICE_ROLE_KEY;

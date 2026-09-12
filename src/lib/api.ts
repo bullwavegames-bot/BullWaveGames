@@ -9,6 +9,7 @@ type ApiErrorBody = {
   ok?: boolean;
   error?: string | { description?: string; message?: string };
   message?: string;
+  code?: string;
 };
 
 function apiErrorMessage(body: ApiErrorBody, status: number): string {
@@ -16,6 +17,9 @@ function apiErrorMessage(body: ApiErrorBody, status: number): string {
   if (body.error?.description) return body.error.description;
   if (body.error?.message) return body.error.message;
   if (body.message) return body.message;
+  if (body.code === "IDENTITY_LINK_REQUIRED") {
+    return "This email already has a Bullwave account. Log in with that account, or use a different email.";
+  }
   return `Request failed (${status})`;
 }
 
@@ -23,9 +27,34 @@ export function newIdempotencyKey(): string {
   return `bw:${crypto.randomUUID()}`;
 }
 
-export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+function jwtExpired(token: string): boolean {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return true;
+    const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/"))) as { exp?: number };
+    return typeof json.exp === "number" && json.exp * 1000 < Date.now() + 10_000;
+  } catch {
+    return true;
+  }
+}
+
+async function accessToken(): Promise<string | undefined> {
   const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
+  const current = data.session?.access_token;
+  if (current && !jwtExpired(current)) return current;
+  const { data: refreshed } = await supabase.auth.refreshSession();
+  return refreshed.session?.access_token ?? current ?? undefined;
+}
+
+function requiresSession(path: string): boolean {
+  return path === "/api/me" || path.startsWith("/api/me/") || path.startsWith("/api/billing/subscribe") || path.startsWith("/api/billing/verify");
+}
+
+export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = await accessToken();
+  if (!token && requiresSession(path)) {
+    throw new Error("Sign in to continue.");
+  }
   const headers = new Headers(options.headers);
   if (!headers.has("Content-Type") && options.body) headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);

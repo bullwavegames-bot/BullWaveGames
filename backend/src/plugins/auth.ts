@@ -27,7 +27,8 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
 
   app.addHook("preHandler", async (request) => {
     const header = request.headers.authorization;
-    const token = header?.startsWith("Bearer ") ? header.slice(7) : request.cookies.bw_access;
+    const fromHeader = Boolean(header?.startsWith("Bearer "));
+    const token = fromHeader ? header!.slice(7) : request.cookies.bw_access;
     if (token) {
       try {
         const claims = config.authMode === "supabase"
@@ -46,8 +47,10 @@ export async function registerAuth(app: FastifyInstance): Promise<void> {
         }
       } catch (error) {
         request.authUser = null;
+        request.supabaseClaims = null;
         if (error instanceof ApiError) throw error;
         request.log.warn({ err: error }, "authentication failed");
+        if (fromHeader) throw unauthorized("Session expired. Log in again.", "TOKEN_INVALID");
       }
     }
     if (request.url.startsWith("/api/play") || request.url.startsWith("/rooms")) {
