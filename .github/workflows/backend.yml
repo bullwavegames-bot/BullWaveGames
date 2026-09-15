@@ -1,0 +1,63 @@
+name: Backend verification
+on:
+  push:
+    paths: ['backend/**', 'shared/**', '.github/workflows/backend.yml']
+  pull_request:
+    paths: ['backend/**', 'shared/**', '.github/workflows/backend.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: bullwave
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: bullwave_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U bullwave -d bullwave_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      NODE_ENV: test
+      AUTH_MODE: legacy
+      DATABASE_URL: postgres://bullwave:test-only@127.0.0.1:5432/bullwave_test
+      TEST_DATABASE_URL: postgres://bullwave:test-only@127.0.0.1:5432/bullwave_test
+      REDIS_URL: redis://127.0.0.1:6379
+      TEST_REDIS_URL: redis://127.0.0.1:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: npm run migrate:prod
+      - run: npm run seed:prod
+      - run: npm run test:integration:seed
+      - run: npm run test:integration:identity
+      - run: npm run test:integration:billing
+      - run: npm run test:integration:webhooks
+      - run: npm run test:integration:gameplay
+      - run: npm run test:integration:support
+      - run: npm run test:integration:catalog
+      - run: npm run test:integration:import
+      - run: npm run test:integration:email

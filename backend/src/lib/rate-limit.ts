@@ -1,13 +1,18 @@
 import { redis } from "../redis.js";
-import { tooMany } from "./errors.js";
+import { ApiError, tooMany } from "./errors.js";
+
+const incrementWithExpiry = `
+  local count = redis.call('INCR', KEYS[1])
+  if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end
+  return count
+`;
 
 export async function hitRateLimit(key: string, limit: number, windowSec: number): Promise<void> {
   try {
-    if (redis.status !== "ready") return;
-    const count = await redis.incr(key);
-    if (count === 1) await redis.expire(key, windowSec);
+    const count = Number(await redis.eval(incrementWithExpiry, 1, key, windowSec));
     if (count > limit) throw tooMany();
   } catch (error) {
     if (error && typeof error === "object" && "statusCode" in error) throw error;
+    throw new ApiError(503, "Request protection is temporarily unavailable. Please retry shortly.", "RATE_LIMIT_UNAVAILABLE");
   }
 }

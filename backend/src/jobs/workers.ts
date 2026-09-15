@@ -6,64 +6,28 @@ import { processIdentityDeletionJobs } from "../services/identity.js";
 import { processWebhookEvents } from "../services/billing.js";
 import { processRoomSnapshotJobs } from "../services/roomSnapshots.js";
 import { needsOperationalAlert, operationsSnapshot } from "../services/operations.js";
+import { createScheduler } from "./scheduler.js";
+import { processEmailJobs } from '../mailer.js';
 
-export function startWorkers(options: { redisAvailable?: boolean } = {}): () => void {
-  const redisAvailable = options.redisAvailable ?? true;
-  const timers: NodeJS.Timeout[] = [];
-  let billingWebhookRun: Promise<number> | null = null;
-  const runBillingWebhooks = () => {
-    if (billingWebhookRun) return;
-    billingWebhookRun = processWebhookEvents()
-      .catch((error) => {
-        logger.warn({ err: error }, "billing webhook worker failed");
-        return 0;
-      })
-      .finally(() => {
-        billingWebhookRun = null;
-      });
-  };
-  if (redisAvailable) {
-    timers.push(setInterval(() => {
-      void drainOutbox().catch((error) => logger.warn({ err: error }, "outbox worker failed"));
-    }, 4000));
-    timers.push(setInterval(() => {
-      void rebuildLeaderboards().catch((error) => logger.warn({ err: error }, "rebuild worker failed"));
-    }, 15 * 60 * 1000));
-    timers.push(setInterval(() => {
-      void sweepStaleRooms().catch((error) => logger.warn({ err: error }, "room sweeper failed"));
-    }, 30 * 1000));
-    void rebuildLeaderboards().catch(() => undefined);
-  }
-  const dunning = setInterval(() => {
-    void expireGraceWindows().catch((error) => logger.warn({ err: error }, "dunning expire failed"));
-  }, 60 * 1000);
-  const daily = setInterval(() => {
-    void ensureDailyChallenge().catch((error) => logger.warn({ err: error }, "daily challenge seed failed"));
-  }, 60 * 1000);
-  const identityDeletion = setInterval(() => {
-    void processIdentityDeletionJobs().catch((error) => logger.warn({ err: error }, "identity deletion worker failed"));
-  }, 15 * 1000);
-  const billingWebhooks = setInterval(() => {
-    runBillingWebhooks();
-  }, 2 * 1000);
-  const roomSnapshots = setInterval(() => {
-    void processRoomSnapshotJobs().catch((error) => logger.warn({ err: error }, "room snapshot worker failed"));
-  }, 2 * 1000);
-  const operations = setInterval(() => {
-    void operationsSnapshot()
-      .then((snapshot) => {
-        if (needsOperationalAlert(snapshot.billingWebhooks) || needsOperationalAlert(snapshot.roomSnapshots)) {
-          logger.error({ operations: snapshot }, "durable worker backlog requires attention");
-        }
-      })
-      .catch((error) => logger.warn({ err: error }, "operations health check failed"));
-  }, 60 * 1000);
-  timers.push(dunning, daily, identityDeletion, billingWebhooks, roomSnapshots, operations);
-  void ensureDailyChallenge().catch(() => undefined);
-  void processIdentityDeletionJobs().catch(() => undefined);
-  runBillingWebhooks();
-  void processRoomSnapshotJobs().catch(() => undefined);
-  return () => {
-    for (const timer of timers) clearInterval(timer);
-  };
+export function startWorkers(): () => Promise<void> {
+  const scheduler = createScheduler((job, error) => logger.warn({ err: error, job }, "worker job failed"));
+  // Keep jobs scheduled through outages; ioredis reconnects and subsequent runs recover.
+  scheduler.add("leaderboard-outbox", 4_000, drainOutbox);
+  scheduler.add("leaderboard-rebuild", 15 * 60_000, rebuildLeaderboards);
+  scheduler.add("room-sweeper", 30_000, sweepStaleRooms);
+  scheduler.add("membership-expiry", 60_000, expireGraceWindows);
+  scheduler.add("daily-challenge", 60_000, ensureDailyChallenge);
+  scheduler.add("identity-deletion", 15_000, processIdentityDeletionJobs);
+  scheduler.add("billing-webhooks", 2_000, processWebhookEvents);
+  scheduler.add('email-delivery', 5_000, processEmailJobs);
+  scheduler.add("room-snapshots", 2_000, processRoomSnapshotJobs);
+  scheduler.add("operations", 60_000, async () => {
+    const snapshot = await operationsSnapshot();
+    if (needsOperationalAlert(snapshot.billingWebhooks) || needsOperationalAlert(snapshot.roomSnapshots)
+      || needsOperationalAlert(snapshot.identityDeletions) || needsOperationalAlert(snapshot.emails)
+      || snapshot.leaderboard.oldestAgeSeconds > 60) {
+      logger.error({ operations: snapshot }, "durable worker backlog requires attention");
+    }
+  });
+  return () => scheduler.stop();
 }

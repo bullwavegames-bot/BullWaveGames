@@ -12,6 +12,7 @@ import {
   revokePlan,
   saveGame,
   saveNote,
+  updateTicket,
 } from "../services/admin.js";
 import { operationsSnapshot } from "../services/operations.js";
 
@@ -109,4 +110,14 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get("/api/admin/tickets", async () => ({ ok: true, tickets: await listTickets() }));
+  app.patch("/api/admin/tickets/:id", async (request) => {
+    const admin = requireAdmin(request);
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+    const body = z.object({
+      status: z.enum(['open', 'in_progress', 'resolved']),
+      assignedTo: z.string().uuid().nullable().optional(),
+      resolution: z.string().trim().min(1).max(5000).optional(),
+    }).strict().parse(request.body);
+    return { ok: true, ticket: await updateTicket(admin.id, id, body) };
+  });
 }

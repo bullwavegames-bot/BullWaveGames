@@ -113,15 +113,22 @@ export async function saveGame(actorId: string, body: Record<string, unknown>) {
   const saved = await sql<{ id: string }[]>`
     INSERT INTO games ${sql(row)}
     ON CONFLICT (slug) DO UPDATE SET
-      title = EXCLUDED.title,
-      genre = EXCLUDED.genre,
-      session_minutes = EXCLUDED.session_minutes,
-      fantasy = EXCLUDED.fantasy,
-      description = EXCLUDED.description,
-      how_to_play = EXCLUDED.how_to_play,
-      cover = EXCLUDED.cover,
-      published = EXCLUDED.published,
-      maintenance = EXCLUDED.maintenance,
+      title = CASE WHEN ${body.title !== undefined} THEN EXCLUDED.title ELSE games.title END,
+      genre = CASE WHEN ${body.genre !== undefined} THEN EXCLUDED.genre ELSE games.genre END,
+      session_minutes = CASE WHEN ${body.sessionMinutes !== undefined || body.session_minutes !== undefined} THEN EXCLUDED.session_minutes ELSE games.session_minutes END,
+      fantasy = CASE WHEN ${body.fantasy !== undefined} THEN EXCLUDED.fantasy ELSE games.fantasy END,
+      description = CASE WHEN ${body.description !== undefined} THEN EXCLUDED.description ELSE games.description END,
+      how_to_play = CASE WHEN ${body.howToPlay !== undefined || body.how_to_play !== undefined} THEN EXCLUDED.how_to_play ELSE games.how_to_play END,
+      cover = CASE WHEN ${body.cover !== undefined} THEN EXCLUDED.cover ELSE games.cover END,
+      cover_alt = CASE WHEN ${body.coverAlt !== undefined || body.cover_alt !== undefined} THEN EXCLUDED.cover_alt ELSE games.cover_alt END,
+      preview_alt = CASE WHEN ${body.previewAlt !== undefined || body.preview_alt !== undefined} THEN EXCLUDED.preview_alt ELSE games.preview_alt END,
+      controls = CASE WHEN ${body.controls !== undefined} THEN EXCLUDED.controls ELSE games.controls END,
+      member_access = CASE WHEN ${body.memberAccess !== undefined || body.member_access !== undefined} THEN EXCLUDED.member_access ELSE games.member_access END,
+      rotation_eligible = CASE WHEN ${body.rotationEligible !== undefined || body.rotation_eligible !== undefined} THEN EXCLUDED.rotation_eligible ELSE games.rotation_eligible END,
+      published = CASE WHEN ${body.published !== undefined} THEN EXCLUDED.published ELSE games.published END,
+      maintenance = CASE WHEN ${body.maintenance !== undefined} THEN EXCLUDED.maintenance ELSE games.maintenance END,
+      is_new = CASE WHEN ${body.isNew !== undefined || body.is_new !== undefined} THEN EXCLUDED.is_new ELSE games.is_new END,
+      unsupported_note = CASE WHEN ${body.unsupportedNote !== undefined} THEN EXCLUDED.unsupported_note ELSE games.unsupported_note END,
       updated_at = now()
     RETURNING id
   `;
@@ -168,6 +175,35 @@ export async function saveNote(actorId: string, note: { id?: string; title: stri
 
 export async function listTickets() {
   return sql`SELECT * FROM support_tickets ORDER BY created_at DESC LIMIT 100`;
+}
+
+export async function updateTicket(actorId: string, id: string, input: {
+  status: 'open' | 'in_progress' | 'resolved';
+  assignedTo?: string | null;
+  resolution?: string;
+}) {
+  if (input.status === 'resolved' && !input.resolution?.trim()) {
+    throw badRequest('A resolution is required.');
+  }
+  return sql.begin(async (tx) => {
+    const existing = await tx`SELECT id FROM support_tickets WHERE id = ${id} FOR UPDATE`;
+    if (!existing[0]) throw notFound('Missing support ticket.');
+    if (input.assignedTo) {
+      const admins = await tx`SELECT id FROM users WHERE id = ${input.assignedTo} AND role = 'admin' AND deleted_at IS NULL FOR SHARE`;
+      if (!admins[0]) throw badRequest('Assign tickets to an active administrator.');
+    }
+    const rows = await tx`
+      UPDATE support_tickets SET status = ${input.status},
+        assigned_to = CASE WHEN ${input.assignedTo !== undefined} THEN ${input.assignedTo ?? null}::uuid ELSE assigned_to END,
+        resolution = ${input.status === 'resolved' ? input.resolution!.trim() : null},
+        resolved_at = CASE WHEN ${input.status === 'resolved'} THEN now() ELSE NULL END,
+        updated_at = now()
+      WHERE id = ${id} RETURNING *
+    `;
+    await tx`INSERT INTO audit_log (actor_id, action, target, payload)
+      VALUES (${actorId}, 'support_ticket_update', ${id}, ${tx.json({ status: input.status, assignedTo: rows[0].assigned_to })})`;
+    return rows[0];
+  });
 }
 
 export async function createTicket(input: {

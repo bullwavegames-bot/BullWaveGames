@@ -1,9 +1,13 @@
+import { recordRoomAction } from '../services/runtimeMetrics.js';
 const queues = new Map<string, Promise<void>>();
 
 /** Runs mutations for one room in arrival order within this API process. */
 export function enqueueRoomAction<T>(roomCode: string, action: () => Promise<T>): Promise<T> {
   const previous = queues.get(roomCode) ?? Promise.resolve();
-  const next = previous.catch(() => undefined).then(action);
+  const started = performance.now();
+  const next = previous.catch(() => undefined).then(action).finally(() => {
+    recordRoomAction(performance.now() - started);
+  });
   const settled = next.then(() => undefined, () => undefined);
   queues.set(roomCode, settled);
   void settled.finally(() => {
