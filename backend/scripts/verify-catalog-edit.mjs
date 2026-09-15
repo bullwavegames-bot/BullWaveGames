@@ -10,8 +10,8 @@ const { saveGame } = await import('../dist/backend/src/services/admin.js');
 const marker = crypto.randomUUID();
 let actorId, gameId;
 try {
-  const actors = await sql`INSERT INTO users (email, password_hash, display_name, role)
-    VALUES (${`${marker}@example.test`}, 'test', 'Test Admin', 'admin') RETURNING id`;
+  const actors = await sql`INSERT INTO users (email, billing_email, password_hash, display_name, role)
+    VALUES (${`${marker}@example.test`}, ${`${marker}@example.test`}, 'test', 'Test Admin', 'admin') RETURNING id`;
   actorId = actors[0].id;
   const slug = `test-${marker}`;
   const created = await saveGame(actorId, { slug, title: 'Original', published: false, memberAccess: false, coverAlt: 'Original alt' });

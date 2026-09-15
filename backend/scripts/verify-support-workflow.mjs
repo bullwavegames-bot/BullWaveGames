@@ -8,9 +8,9 @@ const { createTicket, updateTicket } = await import('../dist/backend/src/service
 const marker = crypto.randomUUID();
 let adminId, memberId, ticketId;
 try {
-  const rows = await sql`INSERT INTO users (email, password_hash, display_name, role)
-    VALUES (${`support-admin-${marker}@example.test`}, 'test', 'Test Admin', 'admin'),
-           (${`support-member-${marker}@example.test`}, 'test', 'Test Member', 'player')
+  const rows = await sql`INSERT INTO users (email, billing_email, password_hash, display_name, role)
+    VALUES (${`support-admin-${marker}@example.test`}, ${`support-admin-${marker}@example.test`}, 'test', 'Test Admin', 'admin'),
+           (${`support-member-${marker}@example.test`}, ${`support-member-${marker}@example.test`}, 'test', 'Test Member', 'player')
     RETURNING id, role`;
   adminId = rows.find(row => row.role === 'admin').id;
   memberId = rows.find(row => row.role !== 'admin').id;

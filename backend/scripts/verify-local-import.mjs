@@ -5,8 +5,9 @@ const { sql } = await import('../dist/backend/src/db.js');
 const { importLocalSaves } = await import('../dist/backend/src/services/localImport.js');
 let userId;
 try {
-  const [user] = await sql`INSERT INTO users (email, password_hash, display_name)
-    VALUES (${`${crypto.randomUUID()}@example.test`}, 'test', 'Import Test') RETURNING id`;
+  const email = `${crypto.randomUUID()}@example.test`;
+  const [user] = await sql`INSERT INTO users (email, billing_email, password_hash, display_name)
+    VALUES (${email}, ${email}, 'test', 'Import Test') RETURNING id`;
   userId = user.id;
   const games = await sql`SELECT id, slug FROM games ORDER BY slug LIMIT 2`;
   assert.equal(games.length, 2, 'Seed at least two games.');
