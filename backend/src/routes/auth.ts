@@ -25,6 +25,7 @@ import { clearAuthCookies, requireUser, setAuthCookies } from "../plugins/auth.j
 import { hitRateLimit } from "../lib/rate-limit.js";
 import { config } from "../config.js";
 import { unauthorized } from "../lib/errors.js";
+import { importLocalSaves, localImportSchema } from '../services/localImport.js';
 import {
   createLegacyMigrationTicket,
   isRecentAuthentication,
@@ -247,34 +248,12 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.post("/api/migrations/local-v1", async (request) => {
     const user = requireUser(request);
     await hitRateLimit(`rl:migrate:${user.id}`, 3, 3600);
-    const body = z
-      .object({
-        displayName: z.string().optional(),
-        saves: z
-          .array(z.object({ slug: z.string(), label: z.string().optional(), payload: z.record(z.unknown()) }))
-          .optional(),
-        cosmetics: z.array(z.string()).optional(),
-      })
-      .parse(request.body);
-    if (body.displayName) await updateMe(user.id, { displayName: body.displayName });
-    if (body.saves) {
-      const { saveProgress } = await import("../services/play.js");
-      for (const save of body.saves) {
-        await saveProgress(user.id, save.slug, save.payload, save.label ?? "Imported save");
-      }
-    }
-    if (body.cosmetics?.length) {
-      for (const id of body.cosmetics) {
-        await sql`
-          INSERT INTO user_cosmetics ${sql({ user_id: user.id, cosmetic_id: id })}
-          ON CONFLICT DO NOTHING
-        `.catch(() => undefined);
-      }
-    }
+    const body = localImportSchema.parse(request.body);
+    const imported = await importLocalSaves(user.id, body);
     return {
       ok: true,
-      imported: { saves: body.saves?.length ?? 0, cosmetics: body.cosmetics?.length ?? 0 },
-      note: "Personal bests and admin role were not imported. Ranked scores require a new accepted play session.",
+      imported,
+      note: "Cosmetics, personal bests and admin role were not imported. Rewards and ranked scores require server verification.",
     };
   });
 }

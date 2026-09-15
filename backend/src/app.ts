@@ -17,7 +17,7 @@ import { adminRoutes } from "./routes/admin.js";
 import { attachRooms } from "./rooms/ws.js";
 import { sql } from "./db.js";
 import { redis } from "./redis.js";
-import { recordHttpRequest } from "./services/runtimeMetrics.js";
+import { recordHttpRequest, startRuntimeMonitoring } from "./services/runtimeMetrics.js";
 
 type ReadinessChecks = { database: () => Promise<unknown>; redis: () => Promise<unknown> };
 
@@ -49,6 +49,9 @@ export async function buildApp(options: { roomsEnabled?: boolean; readinessCheck
     return503OnClosing: true,
   });
   const requestStartedAt = new WeakMap<object, bigint>();
+  let stopMonitoring: (() => void) | undefined;
+  app.addHook('onReady', async () => { stopMonitoring = startRuntimeMonitoring(); });
+  app.addHook('onClose', async () => { stopMonitoring?.(); });
   app.addHook("onRequest", async (request) => {
     requestStartedAt.set(request, process.hrtime.bigint());
   });

@@ -149,4 +149,7 @@ try {
 } finally {
   await sql`DELETE FROM users WHERE email IN ${sql(emails)}`;
   await sql.end();
+  const { redis, redisSub } = await import('../dist/backend/src/redis.js');
+  redis.disconnect();
+  redisSub.disconnect();
 }

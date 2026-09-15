@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { sql } from "../dist/backend/src/db.js";
+import { redis } from "../dist/backend/src/redis.js";
 import { hashPassword } from "../dist/backend/src/lib/crypto.js";
 import { provisionSupabaseUser } from "../dist/backend/src/services/users.js";
 import {
@@ -100,4 +101,5 @@ try {
   if (!createdProfileTable) await sql`DELETE FROM public.profiles WHERE id = ${supabaseId}`;
   if (createdProfileTable) await sql`DROP TABLE public.profiles`;
   await sql.end();
+  redis.disconnect();
 }
